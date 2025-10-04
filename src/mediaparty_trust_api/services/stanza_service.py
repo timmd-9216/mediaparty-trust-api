@@ -26,7 +26,7 @@ class StanzaService:
         Should be called during application startup.
         """
         # Download Spanish model if not already downloaded
-        stanza.download("es", verbose=False)
+        stanza.download("es", verbose=True)
 
         # Initialize the Spanish pipeline with common processors
         self._nlp = stanza.Pipeline(
