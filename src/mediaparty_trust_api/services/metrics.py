@@ -1,6 +1,7 @@
 """Metric calculation functions using Stanza NLP analysis."""
 
 import json
+import logging
 import os
 from typing import List
 
@@ -9,6 +10,9 @@ import requests
 from stanza import Document
 
 from mediaparty_trust_api.models import Metric
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 class OpenRouterLM(dspy.LM):
@@ -26,6 +30,9 @@ class OpenRouterLM(dspy.LM):
         # Prepare messages
         if messages is None:
             messages = [{"role": "user", "content": prompt}]
+
+        logger.info(f"Calling OpenRouter API with model: {self.model}")
+        logger.debug(f"Request messages: {messages}")
 
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
@@ -48,11 +55,15 @@ class OpenRouterLM(dspy.LM):
             result = response.json()
             if 'choices' in result and len(result['choices']) > 0:
                 content = result['choices'][0]['message']['content']
+                logger.info(f"OpenRouter API call successful. Response length: {len(content)} chars")
+                logger.debug(f"Response content: {content}")
                 # Return in the format DSPy expects
                 return [content]
             else:
+                logger.error("No response from model")
                 raise ValueError("No response from model")
         else:
+            logger.error(f"OpenRouter API error: {response.status_code} - {response.text}")
             raise ValueError(f"API error: {response.status_code} - {response.text}")
 
 
@@ -109,7 +120,7 @@ def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
     if not openrouter_api_key:
         # No filtering - use all adjectives if no API key configured
         qualitative_adjective_count = len(adjectives)
-        print("Warning: OPENROUTER_API_KEY not set, using all adjectives without filtering")
+        logger.warning("OPENROUTER_API_KEY not set, using all adjectives without filtering")
     else:
         try:
             # Configure DSPy with custom OpenRouter LM
@@ -121,13 +132,15 @@ def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
 
             # Call the module with adjectives
             adjectives_str = ", ".join(adjectives)
+            logger.info(f"Filtering {len(adjectives)} adjectives with LLM")
             result = filter_module(adjectives=adjectives_str)
 
             # Extract the count from validated output
             qualitative_adjective_count = int(result.count)
+            logger.info(f"LLM filtered to {qualitative_adjective_count} qualitative adjectives")
         except Exception as e:
             # Failover: if OpenRouter fails, skip filtering and use all adjectives
-            print(f"OpenRouter API failed: {e}. Skipping adjective filtering, using all adjectives.")
+            logger.error(f"OpenRouter API failed: {e}. Skipping adjective filtering, using all adjectives.")
             qualitative_adjective_count = len(adjectives)
 
     # Calculate ratio using qualitative adjectives only
