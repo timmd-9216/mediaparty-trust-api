@@ -61,7 +61,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         error,
         endpoint: apiEndpoint,
         articleTitle: articlePayload?.title,
-        url: articlePayload?.url
+        link: articlePayload?.url
       });
       sendResponse({ success: false, error: error.message || 'Unknown error' });
     }
