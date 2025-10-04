@@ -286,7 +286,23 @@ Stanza downloads models on first run. Ensure you have an internet connection.
 
 ## 🤝 Contributing
 
-Contributions are welcome! Please feel free to submit issues or pull requests.
+This project was built by a diverse team of journalists, developers, students, and designers who came together at the MediaParty Hackathon with a shared vision: to bring transparency and objectivity to news consumption.
+
+We believe the best solutions emerge when different perspectives collaborate. Whether you're:
+- 📰 **A journalist** who understands editorial quality
+- 💻 **A developer** passionate about NLP and AI
+- 🎓 **A student** eager to learn and contribute
+- 🎨 **A designer** focused on user experience
+- 🔬 **A researcher** interested in media analysis
+
+...your contributions are welcome! We value diverse viewpoints and skill sets.
+
+### How to Contribute
+
+- **Report Issues**: Found a bug or have a feature idea? [Open an issue](../../issues)
+- **Submit PRs**: Code improvements, new metrics, or documentation updates
+- **Share Feedback**: Help us understand how journalists use the tool
+- **Spread the Word**: Star the repo and share with others interested in media quality
 
 ---
 
