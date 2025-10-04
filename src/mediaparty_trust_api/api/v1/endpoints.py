@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, status
 from mediaparty_trust_api.models import ArticleInput, Metric
 from mediaparty_trust_api.services.metrics import (
     get_adjective_count,
+    get_explicit_sources,
     get_sentence_complexity,
     get_verb_tense_analysis,
     get_word_count,
@@ -49,6 +50,7 @@ async def analyze_article(article: ArticleInput) -> List[Metric]:
             get_word_count(doc, metric_id=1),
             get_sentence_complexity(doc, metric_id=2),
             get_verb_tense_analysis(doc, metric_id=3),
+            get_explicit_sources(doc, metric_id=4),
         ]
 
         return metrics
