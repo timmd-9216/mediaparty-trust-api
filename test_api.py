@@ -3,7 +3,7 @@ import json
 import requests
 import sys
 
-def call_api(input_file: str, output_file: str = "result.json", api_url: str = "http://localhost:8000/analyze"):
+def call_api(input_file: str, output_file: str = "result.json", api_url: str = "http://localhost:8000/api/v1/articles/analyze"):
     """
     Call the trust API with the input JSON and save the output.
 
@@ -50,12 +50,12 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="Call the trust API with input data")
-    parser.add_argument("input", nargs="?", default="test/input.json",
+    parser.add_argument("-i", "--input", default="test/input.json",
                         help="Path to input JSON file (default: test/input.json)")
     parser.add_argument("-o", "--output", default="result.json",
                         help="Path to output JSON file (default: result.json)")
-    parser.add_argument("-u", "--url", default="http://localhost:8000/analyze",
-                        help="API endpoint URL (default: http://localhost:8000/analyze)")
+    parser.add_argument("-u", "--url", default="http://localhost:8000/api/v1/articles/analyze",
+                        help="API endpoint URL (default: http://localhost:8000/api/v1/articles/analyze)")
 
     args = parser.parse_args()
 
