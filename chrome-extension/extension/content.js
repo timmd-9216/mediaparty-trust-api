@@ -33,6 +33,8 @@ const SETTINGS_DEFAULTS = Object.freeze({
   homepageArticles: 5
 });
 
+const UNKNOWN_AUTHOR_PLACEHOLDER = 'Autor desconocido';
+
 const HOMEPAGE_ARTICLES_MIN = 1;
 const HOMEPAGE_ARTICLES_MAX = 20;
 
@@ -94,10 +96,12 @@ async function handleArticlePage() {
   });
 
   const payload = {
-    url: window.location.href,
     title: articleData.title,
     body: articleData.body,
-    wordCount: articleData.wordCount
+    author: articleData.author || UNKNOWN_AUTHOR_PLACEHOLDER,
+    date: "2025-10-04",
+    link: window.location.href,
+    media_type: "news"
   };
 
   try {
@@ -137,7 +141,7 @@ async function handleHomepage(settings) {
   for (const [index, cardInfo] of homepageCards.entries()) {
     console.info('Metricas Periodismo: fetching homepage article', {
       position: index + 1,
-      url: cardInfo.url
+      link: cardInfo.link
     });
     // eslint-disable-next-line no-await-in-loop -- sequential requests avoid overloading the API
     await annotateHomepageCard(cardInfo);
@@ -230,7 +234,7 @@ function collectHomepageAnchorsFallback(seenUrls, currentCount, desiredCount) {
     }
 
     seenUrls.add(normalizedUrl);
-    fallbackCards.push({ anchor, cardElement, url: normalizedUrl });
+    fallbackCards.push({ anchor, cardElement, link: normalizedUrl });
   });
 
   return fallbackCards;
@@ -252,7 +256,7 @@ function addHomepageCard(cardElement, seenUrls, cards) {
   }
 
   seenUrls.add(normalizedUrl);
-  cards.push({ anchor, cardElement, url: normalizedUrl });
+  cards.push({ anchor, cardElement, link: normalizedUrl });
 }
 
 function findPrimaryAnchor(cardElement) {
@@ -310,7 +314,7 @@ function isLikelyArticleUrl(urlString) {
   }
 }
 
-async function annotateHomepageCard({ cardElement, url }) {
+async function annotateHomepageCard({ cardElement, link }) {
   const overlay = ensureCardOverlay(cardElement);
   setCardOverlayState(overlay, {
     status: 'loading',
@@ -318,19 +322,23 @@ async function annotateHomepageCard({ cardElement, url }) {
   });
 
   try {
-    const articleDocument = await fetchArticleDocument(url);
+    const articleDocument = await fetchArticleDocument(link);
     const articleData = extractArticleData(articleDocument);
 
     if (!articleData.body) {
       throw new Error('No se pudo extraer el cuerpo de la nota.');
     }
 
-    const payload = {
-      url,
-      title: articleData.title,
-      body: articleData.body,
-      wordCount: articleData.wordCount
-    };
+  const payload = {
+    title: articleData.title,
+    body: articleData.body,
+    author: articleData.author || UNKNOWN_AUTHOR_PLACEHOLDER,
+    date: "2025-10-04",
+    link: window.location.href,
+    media_type: "news"
+  };
+
+    
 
     const criteriaList = await requestAnalysis(payload);
 
@@ -345,7 +353,7 @@ async function annotateHomepageCard({ cardElement, url }) {
 
     populateOverlayWithBadges(overlay, criteriaList);
     console.info('Metricas Periodismo: annotated homepage article', {
-      url,
+      url: link,
       criteriaCount: criteriaList.length
     });
   } catch (error) {
@@ -439,12 +447,186 @@ function extractArticleData(rootDocument = document) {
   const bodyText = paragraphTexts.join('\n\n');
   const wordCount = bodyText ? bodyText.split(/\s+/).filter(Boolean).length : 0;
 
+  const author = extractArticleAuthor(rootDocument);
+
   return {
     primaryContainer: rootDocument === document ? container : null,
     title: titleEl?.textContent?.trim() || '',
     body: bodyText,
-    wordCount
+    wordCount,
+    author
   };
+}
+
+function extractArticleAuthor(rootDocument) {
+  const authorFromMeta = findAuthorInMeta(rootDocument);
+  if (authorFromMeta) {
+    return authorFromMeta;
+  }
+
+  const authorFromStructuredData = findAuthorInStructuredData(rootDocument);
+  if (authorFromStructuredData) {
+    return authorFromStructuredData;
+  }
+
+  const authorFromByline = findAuthorInBylineElements(rootDocument);
+  if (authorFromByline) {
+    return authorFromByline;
+  }
+
+  return '';
+}
+
+function normalizeAuthorText(rawText) {
+  if (!rawText) {
+    return '';
+  }
+
+  let cleaned = String(rawText)
+    .replace(/[\n\r\t]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  cleaned = cleaned
+    .replace(/^(por|por\s+el|por\s+la|por\s+los|por\s+las|by|de)\s+/i, '')
+    .replace(/^autor[:\-\s]+/i, '')
+    .replace(/\s*\|\s*.*$/, '')
+    .replace(/\s*[–-]\s+.*$/, '');
+
+  if (cleaned.length > 120) {
+    return '';
+  }
+
+  if (/https?:\/\//i.test(cleaned)) {
+    return '';
+  }
+
+  return cleaned.trim();
+}
+
+function findAuthorInMeta(rootDocument) {
+  const selectors = [
+    'meta[name="author"]',
+    'meta[name="byline"]',
+    'meta[name="parsely-author"]',
+    'meta[name="dc.creator"]',
+    'meta[name="DC.creator"]',
+    'meta[name="dcterms.creator"]',
+    'meta[property="author"]',
+    'meta[property="article:author"]',
+    'meta[property="og:article:author"]'
+  ];
+
+  for (const selector of selectors) {
+    const meta = rootDocument.querySelector(selector);
+    const content = normalizeAuthorText(meta?.getAttribute('content'));
+    if (content) {
+      return content;
+    }
+  }
+
+  return '';
+}
+
+function findAuthorInStructuredData(rootDocument) {
+  const scripts = Array.from(rootDocument.querySelectorAll('script[type="application/ld+json"]'));
+
+  for (const script of scripts) {
+    try {
+      const jsonText = script.textContent;
+      if (!jsonText) {
+        continue;
+      }
+
+      const data = JSON.parse(jsonText);
+      const authorName = extractAuthorNameFromStructuredData(data);
+      const normalized = normalizeAuthorText(authorName);
+      if (normalized) {
+        return normalized;
+      }
+    } catch (error) {
+      // Ignore malformed JSON-LD blocks
+    }
+  }
+
+  return '';
+}
+
+function extractAuthorNameFromStructuredData(data) {
+  if (!data) {
+    return '';
+  }
+
+  if (Array.isArray(data)) {
+    for (const item of data) {
+      const extracted = extractAuthorNameFromStructuredData(item);
+      if (extracted) {
+        return extracted;
+      }
+    }
+    return '';
+  }
+
+  if (typeof data !== 'object') {
+    return '';
+  }
+
+  if ('@graph' in data) {
+    return extractAuthorNameFromStructuredData(data['@graph']);
+  }
+
+  const author = data.author || data.creator;
+  if (!author) {
+    return '';
+  }
+
+  if (typeof author === 'string') {
+    return author;
+  }
+
+  if (Array.isArray(author)) {
+    for (const entry of author) {
+      const extracted = extractAuthorNameFromStructuredData(entry);
+      if (extracted) {
+        return extracted;
+      }
+    }
+    return '';
+  }
+
+  if (typeof author === 'object') {
+    return author.name || author['@name'] || '';
+  }
+
+  return '';
+}
+
+function findAuthorInBylineElements(rootDocument) {
+  const selectors = [
+    '[itemprop="author"] [itemprop="name"]',
+    '[itemprop="author"], [itemtype*="Person" i] [itemprop="name"]',
+    '.author, .author-name, .byline, .byline__author, .byline__name, .byline__names, .nota-autor',
+    '.article-author, .article__author, .story-author, .post-author'
+  ];
+
+  const seen = new Set();
+
+  for (const selector of selectors) {
+    const elements = Array.from(rootDocument.querySelectorAll(selector));
+
+    for (const element of elements) {
+      const text = normalizeAuthorText(element?.textContent);
+
+      if (!text || seen.has(text)) {
+        continue;
+      }
+
+      seen.add(text);
+      return text;
+    }
+  }
+
+  return '';
 }
 
 function injectPanel(anchorElement) {
