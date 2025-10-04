@@ -2,7 +2,7 @@
 
 **An intelligent journalism quality analysis system that combines NLP with LLM-powered metrics to evaluate article credibility and objectivity.**
 
-Built for the [2025 MediaParty Hackathon](https://docs.google.com/presentation/d/1vU38j0-vZcb5TrZEJ-d_1gVM2oLHOujc/edit?usp=sharing&ouid=104445841918104065705&rtpof=true&sd=true) | [Video Demo](https://drive.google.com/file/d/1nKPmSiT8_sjRimqFFCisDHxc1hx3ge67/view?usp=sharing)
+Built for the [2025 MediaParty Hackathon](https://docs.google.com/presentation/d/1vU38j0-vZcb5TrZEJ-d_1gVM2oLHOujc/edit?usp=sharing&ouid=104445841918104065705&rtpof=true&sd=true) | [Video Demo](https://drive.google.com/file/d/1nKPmSiT8_sjRimqFFCisDHxc1hx3ge67/view?usp=sharing) | (Hackdash)[https://hackdash.org/projects/68dd4b82f23e470f557fa1e2]
 
 Powered by [Trust: NLP news and text analyzer](https://github.com/timmd-9216/trust)
 
@@ -292,10 +292,10 @@ Contributions are welcome! Please feel free to submit issues or pull requests.
 
 ## 📄 License
 
-[Specify license]
+[LICENSE](LICENSE)
 
 ---
 
 ## 🏆 Acknowledgments
 
-Developed for the MediaParty Hackathon. Built with FastAPI, Stanza, DSPy, and OpenRouter.
+Developed for the MediaParty Hackathon. Built with [Trust](https://github.com/timmd-9216/trust), FastAPI, Stanza, DSPy, and OpenRouter.
