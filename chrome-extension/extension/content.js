@@ -126,6 +126,8 @@ async function handleArticlePage() {
 }
 
 async function handleHomepage(settings) {
+  document.documentElement.classList.add('metricas-page--homepage');
+
   const homepageLimit = normalizeHomepageArticles(settings?.homepageArticles);
   const homepageCards = collectHomepageArticleLinks(homepageLimit).slice(0, homepageLimit);
 
@@ -316,6 +318,8 @@ function isLikelyArticleUrl(urlString) {
 
 async function annotateHomepageCard({ cardElement, link }) {
   const overlay = ensureCardOverlay(cardElement);
+  const headingText = getCardHeadingText(cardElement);
+
   setCardOverlayState(overlay, {
     status: 'loading',
     message: 'Analizando…'
@@ -329,16 +333,14 @@ async function annotateHomepageCard({ cardElement, link }) {
       throw new Error('No se pudo extraer el cuerpo de la nota.');
     }
 
-  const payload = {
-    title: articleData.title,
-    body: articleData.body,
-    author: articleData.author || UNKNOWN_AUTHOR_PLACEHOLDER,
-    date: "2025-10-04",
-    link: window.location.href,
-    media_type: "news"
-  };
-
-    
+    const payload = {
+      title: articleData.title,
+      body: articleData.body,
+      author: articleData.author || UNKNOWN_AUTHOR_PLACEHOLDER,
+      date: "2025-10-04",
+      link: window.location.href,
+      media_type: "news"
+    };
 
     const criteriaList = await requestAnalysis(payload);
 
@@ -347,11 +349,15 @@ async function annotateHomepageCard({ cardElement, link }) {
         status: 'empty',
         message: 'Sin criterios disponibles.'
       });
-      console.warn('Metricas Periodismo: API returned no criteria for homepage article', url);
+      console.warn('Metricas Periodismo: API returned no criteria for homepage article', link);
       return;
     }
 
-    populateOverlayWithBadges(overlay, criteriaList);
+    populateOverlayWithBadges(overlay, criteriaList, {
+      iconText: (criterion) => extractTitleInitials(criterion.criteria_name || '', { maxLength: 3 }),
+      tooltipPrefix: headingText,
+      showScore: false
+    });
     console.info('Metricas Periodismo: annotated homepage article', {
       url: link,
       criteriaCount: criteriaList.length
@@ -362,7 +368,7 @@ async function annotateHomepageCard({ cardElement, link }) {
       message: error.message || 'Error al analizar la nota.'
     });
     console.error('Metricas Periodismo: failed to annotate homepage article', {
-      url,
+      url: link,
       error
     });
   }
@@ -384,13 +390,89 @@ async function fetchArticleDocument(url) {
 
 function ensureCardOverlay(cardElement) {
   cardElement.classList.add('metricas-card');
+
+  const { parent, referenceNode } = determineOverlayInsertionPoint(cardElement);
+
   let overlay = cardElement.querySelector('.metricas-card-overlay');
   if (!overlay) {
     overlay = document.createElement('div');
     overlay.className = 'metricas-card-overlay metricas-card-overlay--loading';
-    cardElement.appendChild(overlay);
   }
+
+  if (overlay.parentElement !== parent) {
+    parent.insertBefore(overlay, referenceNode);
+  } else if (referenceNode && overlay.nextSibling !== referenceNode) {
+    parent.insertBefore(overlay, referenceNode);
+  }
+
   return overlay;
+}
+
+function determineOverlayInsertionPoint(cardElement) {
+  const heading = findCardHeading(cardElement);
+  if (heading) {
+    const anchor = heading.closest('a');
+    if (anchor?.parentElement) {
+      return { parent: anchor.parentElement, referenceNode: anchor.nextSibling };
+    }
+
+    if (heading.parentElement) {
+      return { parent: heading.parentElement, referenceNode: heading.nextSibling };
+    }
+  }
+
+  const leadElement = cardElement.querySelector(
+    'p, .summary, .lead, .lead-text, .epigraph, .description, [data-component="summary"]'
+  );
+
+  if (leadElement?.parentElement) {
+    return { parent: leadElement.parentElement, referenceNode: leadElement };
+  }
+
+  return { parent: cardElement, referenceNode: cardElement.firstChild };
+}
+
+function findCardHeading(cardElement) {
+  const selectors = ['h1', 'h2', 'h3', 'h4', '[role="heading"]'];
+
+  for (const selector of selectors) {
+    const heading = cardElement.querySelector(selector);
+    if (heading) {
+      return heading;
+    }
+  }
+
+  return null;
+}
+
+function getCardHeadingText(cardElement) {
+  const heading = findCardHeading(cardElement);
+  if (!heading) {
+    return '';
+  }
+
+  return heading.textContent ? heading.textContent.replace(/\s+/g, ' ').trim() : '';
+}
+
+function extractTitleInitials(title, { maxLength = 3 } = {}) {
+  if (!title) {
+    return '';
+  }
+
+  const initials = [];
+  const words = title.split(/\s+/).filter(Boolean);
+
+  for (const word of words) {
+    const match = word.match(/[A-Za-zÁ-ÖØ-öø-ÿ0-9]/);
+    if (match) {
+      initials.push(match[0].toUpperCase());
+      if (initials.length >= maxLength) {
+        break;
+      }
+    }
+  }
+
+  return initials.join('');
 }
 
 function setCardOverlayState(overlay, { status, message }) {
@@ -398,12 +480,12 @@ function setCardOverlayState(overlay, { status, message }) {
   overlay.innerHTML = `<span class="metricas-card-overlay__message">${escapeHtml(message)}</span>`;
 }
 
-function populateOverlayWithBadges(overlay, criteriaList) {
+function populateOverlayWithBadges(overlay, criteriaList, options = {}) {
   overlay.className = 'metricas-card-overlay metricas-card-overlay--ready';
   overlay.innerHTML = '';
 
   criteriaList.forEach((criterion) => {
-    overlay.appendChild(createBadgeElement(criterion));
+    overlay.appendChild(createBadgeElement(criterion, options));
   });
 }
 
@@ -708,24 +790,54 @@ function renderBadges(articleElement, criteriaList) {
   });
 }
 
-function createBadgeElement(criterion) {
+function resolveBadgeIconText(criterion, options, fallback) {
+  const iconTextOption = options.iconText;
+
+  if (typeof iconTextOption === 'function') {
+    const computed = iconTextOption(criterion, fallback);
+    if (computed && computed.length > 0) {
+      return computed;
+    }
+  } else if (typeof iconTextOption === 'string' && iconTextOption.length > 0) {
+    return iconTextOption;
+  }
+
+  return fallback;
+}
+
+function createBadgeElement(criterion, options = {}) {
   const badge = document.createElement('span');
   badge.className = `metricas-badge ${flagToClass(criterion.flag)}`;
 
   const scoreText = formatScore(criterion.score);
   const name = criterion.criteria_name || 'Criterio';
   const explanation = criterion.explanation || '';
+  const iconText = resolveBadgeIconText(criterion, options, name);
+  const showScore = options.showScore !== false;
 
   badge.innerHTML = `
     <span class="metricas-badge__shape">
-      <span class="metricas-badge__name">${escapeHtml(name)}</span>
-      <span class="metricas-badge__score">${scoreText}</span>
+      <span class="metricas-badge__name">${escapeHtml(iconText)}</span>
+      ${showScore ? `<span class="metricas-badge__score">${scoreText}</span>` : ''}
     </span>
   `;
 
+  const tooltipSegments = [name, options.tooltipPrefix, explanation]
+    .map((segment) => (segment ? String(segment).trim() : ''))
+    .filter(Boolean);
+
+  const uniqueTooltipSegments = tooltipSegments.filter(
+    (segment, index, array) => array.indexOf(segment) === index
+  );
+
+  if (uniqueTooltipSegments.length > 0) {
+    const tooltipText = uniqueTooltipSegments.join('. ');
+    badge.setAttribute('aria-label', tooltipText);
+    badge.setAttribute('title', tooltipText);
+  }
+
   if (explanation) {
     badge.dataset.description = explanation;
-    badge.setAttribute('aria-label', `${name}. ${explanation}`);
   }
 
   return badge;

@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Metricas Periodismo Annotator",
+  "name": "Diggity - Read what you deserve",
   "version": "0.1.0",
   "description": "Scrape Infobae articles, send them to an analysis API, and display quality criteria markers in-page.",
   "permissions": ["activeTab", "scripting", "storage"],

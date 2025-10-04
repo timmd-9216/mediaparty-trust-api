@@ -92,23 +92,44 @@
   padding: 8px 0;
 }
 
-.metricas-card {
-  position: relative;
-}
-
 .metricas-card-overlay {
-  position: absolute;
-  top: 8px;
-  left: 8px;
+  position: static;
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
-  max-width: 80%;
-  z-index: 40;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.metricas-page--homepage .metricas-card-overlay.metricas-card-overlay--ready {
+  flex-direction: column;
+  flex-wrap: nowrap;
+  align-items: flex-start;
 }
 
 .metricas-card-overlay .metricas-badge {
   pointer-events: auto;
+  width: 48px;
+  height: 48px;
+  font-size: 11px;
+}
+
+.metricas-card-overlay .metricas-badge__shape {
+  border-width: 2px;
+  box-shadow: none;
+  padding: 6px;
+  gap: 4px;
+}
+
+.metricas-card-overlay .metricas-badge__name {
+  display: block;
+  font-size: 14px;
+  line-height: 1.1;
+  letter-spacing: 0.4px;
+  word-break: break-word;
+}
+
+.metricas-card-overlay .metricas-badge__score {
+  font-size: 11px;
 }
 
 .metricas-card-overlay--loading,

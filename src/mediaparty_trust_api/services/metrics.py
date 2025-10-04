@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 from typing import List
 
 import dspy
@@ -73,8 +74,11 @@ class QualitativeAdjectiveFilter(dspy.Signature):
     adjectives: str = dspy.InputField(
         desc="Comma-separated list of adjectives extracted from a news article"
     )
-    count: int = dspy.OutputField(
-        desc="Count of ONLY qualitative/calificative adjectives (adjectives that express opinion, quality, or subjective judgment like 'good', 'terrible', 'beautiful'). Do NOT count objective descriptive adjectives like 'red', 'large', 'presidential', 'economic'."
+    count: str = dspy.OutputField(
+        desc=(
+            "Return ONLY the integer number of qualitative/calificative adjectives. "
+            "No words, explanations, or units—just the integer as text."
+        )
     )
 
 
@@ -122,26 +126,44 @@ def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
         qualitative_adjective_count = len(adjectives)
         logger.warning("OPENROUTER_API_KEY not set, using all adjectives without filtering")
     else:
+        logger.info("Attempting OpenRouter filtering for qualitative adjectives")
+        filtered_with_llm = False
         try:
-            # Configure DSPy with custom OpenRouter LM
+            # Configure DSPy with custom OpenRouter LM inside a context so async tasks don't conflict
             lm = OpenRouterLM(model="google/gemma-2-9b-it:free")
-            dspy.configure(lm=lm)
+            with dspy.context(lm=lm):
+                # Create DSPy module with signature for input/output validation
+                filter_module = dspy.ChainOfThought(QualitativeAdjectiveFilter)
 
-            # Create DSPy module with signature for input/output validation
-            filter_module = dspy.ChainOfThought(QualitativeAdjectiveFilter)
+                # Call the module with adjectives
+                adjectives_str = ", ".join(adjectives)
+                logger.info(f"Filtering {len(adjectives)} adjectives with LLM")
+                result = filter_module(adjectives=adjectives_str)
 
-            # Call the module with adjectives
-            adjectives_str = ", ".join(adjectives)
-            logger.info(f"Filtering {len(adjectives)} adjectives with LLM")
-            result = filter_module(adjectives=adjectives_str)
+                # Extract the count from validated output; tolerate stray characters
+                raw_count = str(result.count).strip()
+                match = re.search(r"\d+", raw_count)
+                if not match:
+                    raise ValueError(
+                        f"LLM response did not contain an integer count: '{raw_count}'"
+                    )
 
-            # Extract the count from validated output
-            qualitative_adjective_count = int(result.count)
-            logger.info(f"LLM filtered to {qualitative_adjective_count} qualitative adjectives")
+                qualitative_adjective_count = int(match.group())
+                filtered_with_llm = True
+                logger.info(
+                    f"LLM filtered to {qualitative_adjective_count} qualitative adjectives"
+                )
         except Exception as e:
             # Failover: if OpenRouter fails, skip filtering and use all adjectives
             logger.error(f"OpenRouter API failed: {e}. Skipping adjective filtering, using all adjectives.")
             qualitative_adjective_count = len(adjectives)
+        finally:
+            if filtered_with_llm:
+                logger.info("OpenRouter filtering succeeded; LLM-provided count will be used")
+            else:
+                logger.warning(
+                    "OpenRouter filtering unavailable, using raw adjective count instead"
+                )
 
     # Calculate ratio using qualitative adjectives only
     adjective_ratio = qualitative_adjective_count / total_words if total_words > 0 else 0
