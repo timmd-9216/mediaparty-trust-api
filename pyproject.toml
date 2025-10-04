@@ -7,7 +7,9 @@ authors = [
     { name = "JuanCruzC97", email = "juancruzcamacho97@gmail.com" }
 ]
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "requests>=2.31.0",
+]
 
 [project.scripts]
 mediaparty-trust-api = "mediaparty_trust_api:main"
