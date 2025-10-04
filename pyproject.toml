@@ -12,7 +12,11 @@ dependencies = [
     "pydantic-settings>=2.11.0",
     "uvicorn>=0.34.0",
     "stanza>=1.10.1",
+<<<<<<< HEAD
     "dspy-ai>=2.5.0",
+=======
+    "pyyaml>=6.0.3",
+>>>>>>> 6c9c1c8246daff3b918f01a6dc1b77b2d75b6962
 ]
 
 [project.scripts]
