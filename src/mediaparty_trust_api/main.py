@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from mediaparty_trust_api.api.v1 import router as api_v1_router
+from mediaparty_trust_api.core.config import config  # Load .env variables
 from mediaparty_trust_api.services.stanza_service import stanza_service
 
 # from fastapi.middleware.cors import CORSMiddleware
