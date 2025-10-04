@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Metricas Periodismo Annotator",
+  "version": "0.1.0",
+  "description": "Scrape Infobae articles, send them to an analysis API, and display quality criteria markers in-page.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "host_permissions": [
+    "https://www.infobae.com/*",
+    "https://*/*",
+    "http://localhost/"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Metricas Periodismo Annotator"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://www.infobae.com/*"],
+      "js": ["content.js"],
+      "css": ["styles.css"],
+      "run_at": "document_idle"
+    }
+  ],
+  "options_page": "options.html"
+}

@@ -1,0 +1,255 @@
+.metricas-panel {
+  font-family: 'Helvetica Neue', Arial, sans-serif;
+  background: #ffffff;
+  border: 1px solid #dadce0;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 24px rgba(32, 33, 36, 0.12);
+}
+
+.metricas-panel__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+
+.metricas-panel__title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.metricas-panel__subtitle {
+  font-size: 13px;
+  color: #5f6368;
+}
+
+.metricas-panel__message {
+  font-size: 14px;
+  color: #3c4043;
+}
+
+.metricas-panel__list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+
+.metricas-panel__item {
+  border-radius: 10px;
+  padding: 12px;
+  border: 1px solid #e0e0e0;
+  background: #fafafa;
+}
+
+.metricas-panel__item.metricas--positive {
+  border-color: #0f9d58;
+  background: #e6f4ea;
+}
+
+.metricas-panel__item.metricas--negative {
+  border-color: #d93025;
+  background: #fce8e6;
+}
+
+.metricas-panel__item.metricas--neutral {
+  border-color: #9aa0a6;
+  background: #f1f3f4;
+}
+
+.metricas-panel__item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 8px;
+}
+
+.metricas-panel__item-name {
+  font-weight: 600;
+  font-size: 15px;
+}
+
+.metricas-panel__score {
+  font-size: 13px;
+  color: #3c4043;
+}
+
+.metricas-panel__explanation {
+  margin: 0;
+  font-size: 14px;
+  color: #3c4043;
+}
+
+.metricas-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding: 8px 0;
+}
+
+.metricas-card {
+  position: relative;
+}
+
+.metricas-card-overlay {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-width: 80%;
+  z-index: 40;
+}
+
+.metricas-card-overlay .metricas-badge {
+  pointer-events: auto;
+}
+
+.metricas-card-overlay--loading,
+.metricas-card-overlay--error,
+.metricas-card-overlay--empty {
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.metricas-card-overlay__message {
+  background: rgba(32, 33, 36, 0.92);
+  color: #f1f3f4;
+  padding: 8px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: none;
+  letter-spacing: 0;
+  line-height: 1.4;
+}
+
+.metricas-card-overlay--error .metricas-card-overlay__message {
+  background: rgba(217, 48, 37, 0.92);
+}
+
+.metricas-card-overlay--empty .metricas-card-overlay__message {
+  background: rgba(95, 99, 104, 0.85);
+}
+
+/* Clip badges as regular octagons styled like front-of-package warning seals */
+.metricas-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 150px;
+  height: 150px;
+  position: relative;
+  overflow: visible;
+  cursor: default;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  line-height: 1.25;
+  color: #fff;
+}
+
+.metricas-badge__shape {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  background: #111;
+  border: 6px solid #fff;
+  box-shadow: 0 0 0 3px #111;
+  word-break: break-word;
+  clip-path: polygon(
+    29.3% 0%,
+    70.7% 0%,
+    100% 29.3%,
+    100% 70.7%,
+    70.7% 100%,
+    29.3% 100%,
+    0% 70.7%,
+    0% 29.3%
+  );
+}
+
+.metricas-badge.metricas--positive .metricas-badge__shape {
+  background: #0b5f1e;
+  box-shadow: 0 0 0 3px #0b5f1e;
+}
+
+.metricas-badge.metricas--negative .metricas-badge__shape {
+  background: #7a1813;
+  box-shadow: 0 0 0 3px #7a1813;
+}
+
+.metricas-badge.metricas--neutral .metricas-badge__shape {
+  background: #4a4d52;
+  box-shadow: 0 0 0 3px #4a4d52;
+}
+
+.metricas-badge__name {
+  display: block;
+}
+
+.metricas-badge__score {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.metricas-badge[data-description] {
+  cursor: help;
+}
+
+.metricas-badge[data-description]::after,
+.metricas-badge[data-description]::before {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  visibility: hidden;
+}
+
+.metricas-badge[data-description]::after {
+  content: attr(data-description);
+  bottom: -12px;
+  left: 50%;
+  transform: translate(-50%, 100%);
+  max-width: 260px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: rgba(32, 33, 36, 0.92);
+  color: #f1f3f4;
+  font-size: 13px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: normal;
+  line-height: 1.4;
+  z-index: 10;
+}
+
+.metricas-badge[data-description]::before {
+  content: '';
+  bottom: -12px;
+  left: 50%;
+  transform: translate(-50%, 100%);
+  border: 8px solid transparent;
+  border-bottom-color: rgba(32, 33, 36, 0.92);
+  z-index: 9;
+}
+
+.metricas-badge[data-description]:hover::after,
+.metricas-badge[data-description]:hover::before {
+  opacity: 1;
+  visibility: visible;
+}
