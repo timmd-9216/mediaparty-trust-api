@@ -1,3 +1,5 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
@@ -24,5 +26,33 @@ class ArticleInput(BaseModel):
                 "link": "https://example.com/article",
                 "date": "2025-10-04",
                 "media_type": "news",
+            }
+        }
+
+
+class Metric(BaseModel):
+    """
+    Individual metric result from article analysis.
+    """
+
+    id: int = Field(..., description="Unique identifier for the metric")
+    criteria_name: str = Field(..., description="Name of the criteria being evaluated")
+    explanation: str = Field(
+        ..., description="Detailed explanation of the metric result"
+    )
+    flag: Literal[-1, 0, 1] = Field(
+        ...,
+        description="Flag indicating the result: -1 (negative), 0 (neutral), 1 (positive)",
+    )
+    score: float = Field(..., ge=0.0, le=1.0, description="Score between 0.0 and 1.0")
+
+    class Config:
+        json_schema_extra = {
+            "example": {
+                "id": 0,
+                "criteria_name": "Pyramid",
+                "explanation": "The inverted pyramid criteria for good journalism is not respected.",
+                "flag": -1,
+                "score": 0.2,
             }
         }
