@@ -1,59 +1,164 @@
 """Metric calculation functions using Stanza NLP analysis."""
 
+import json
+import os
+from typing import List
+
+import dspy
+import requests
 from stanza import Document
 
 from mediaparty_trust_api.models import Metric
 
 
+class OpenRouterLM(dspy.LM):
+    """Custom DSPy LM that uses OpenRouter API directly."""
+
+    def __init__(self, model: str = "google/gemma-2-9b-it:free", **kwargs):
+        self.model = model
+        self.api_key = os.getenv("OPENROUTER_API_KEY")
+        if not self.api_key:
+            raise ValueError("OPENROUTER_API_KEY environment variable not set")
+        self.kwargs = kwargs
+        super().__init__(model=model)
+
+    def __call__(self, prompt=None, messages=None, **kwargs):
+        # Prepare messages
+        if messages is None:
+            messages = [{"role": "user", "content": prompt}]
+
+        response = requests.post(
+            url="https://openrouter.ai/api/v1/chat/completions",
+            headers={
+                "Authorization": f"Bearer {self.api_key}",
+                "Content-Type": "application/json",
+                "HTTP-Referer": os.getenv("SITE_URL", ""),
+                "X-Title": os.getenv("SITE_NAME", "MediaParty Trust API"),
+            },
+            json={
+                "model": self.model,
+                "messages": messages,
+                "temperature": kwargs.get("temperature", 0.1),
+                "top_p": kwargs.get("top_p", 0.9),
+                "max_tokens": kwargs.get("max_tokens", 500),
+            }
+        )
+
+        if response.status_code == 200:
+            result = response.json()
+            if 'choices' in result and len(result['choices']) > 0:
+                content = result['choices'][0]['message']['content']
+                # Return in the format DSPy expects
+                return [content]
+            else:
+                raise ValueError("No response from model")
+        else:
+            raise ValueError(f"API error: {response.status_code} - {response.text}")
+
+
+class QualitativeAdjectiveFilter(dspy.Signature):
+    """Filter and count qualitative/calificative adjectives from a list."""
+
+    adjectives: str = dspy.InputField(
+        desc="Comma-separated list of adjectives extracted from a news article"
+    )
+    count: int = dspy.OutputField(
+        desc="Count of ONLY qualitative/calificative adjectives (adjectives that express opinion, quality, or subjective judgment like 'good', 'terrible', 'beautiful'). Do NOT count objective descriptive adjectives like 'red', 'large', 'presidential', 'economic'."
+    )
+
+
 def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
     """
-    Calculate adjective ratio metric from Stanza document.
+    Calculate qualitative adjective ratio metric from Stanza document.
 
-    Analyzes the proportion of adjectives in the text. A healthy ratio
-    indicates objective writing, while too many adjectives may suggest
-    opinionated or sensationalist content.
+    Analyzes the proportion of qualitative/calificative adjectives in the text.
+    Uses DSPy with OpenRouter LM to filter only subjective adjectives that express opinion or judgment.
+    A healthy ratio indicates objective writing, while too many qualitative adjectives
+    may suggest opinionated or sensationalist content.
 
     Args:
         doc: Stanza Document object with linguistic annotations
         metric_id: Unique identifier for this metric
 
     Returns:
-        Metric object with adjective analysis results
+        Metric object with qualitative adjective analysis results
     """
     total_words = 0
-    adjective_count = 0
+    adjectives: List[str] = []
 
-    # Iterate through all sentences and words
+    # Iterate through all sentences and words to collect adjectives
     for sentence in doc.sentences:
         for word in sentence.words:
             total_words += 1
             # ADJ is the universal POS tag for adjectives
             if word.upos == "ADJ":
-                adjective_count += 1
+                adjectives.append(word.text)
 
-    # Calculate ratio
-    adjective_ratio = adjective_count / total_words if total_words > 0 else 0
+    # If no adjectives found, return early
+    if not adjectives:
+        return Metric(
+            id=metric_id,
+            criteria_name="Qualitative Adjectives",
+            explanation="No adjectives found in the text.",
+            flag=1,
+            score=1.0,
+        )
+
+    # Use DSPy with OpenRouter to filter qualitative adjectives
+    openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+    if not openrouter_api_key:
+        # No filtering - use all adjectives if no API key configured
+        qualitative_adjective_count = len(adjectives)
+        print("Warning: OPENROUTER_API_KEY not set, using all adjectives without filtering")
+    else:
+        try:
+            # Configure DSPy with custom OpenRouter LM
+            lm = OpenRouterLM(model="google/gemma-2-9b-it:free")
+            dspy.configure(lm=lm)
+
+            # Create DSPy module with signature for input/output validation
+            filter_module = dspy.ChainOfThought(QualitativeAdjectiveFilter)
+
+            # Call the module with adjectives
+            adjectives_str = ", ".join(adjectives)
+            result = filter_module(adjectives=adjectives_str)
+
+            # Extract the count from validated output
+            qualitative_adjective_count = int(result.count)
+        except Exception as e:
+            # Failover: if OpenRouter fails, skip filtering and use all adjectives
+            print(f"OpenRouter API failed: {e}. Skipping adjective filtering, using all adjectives.")
+            qualitative_adjective_count = len(adjectives)
+
+    # Calculate ratio using qualitative adjectives only
+    adjective_ratio = qualitative_adjective_count / total_words if total_words > 0 else 0
 
     # Define thresholds for evaluation
-    # Typical news articles have 5-10% adjectives
-    if adjective_ratio <= 0.12:
+    # Typical news articles should have minimal qualitative adjectives (< 5%)
+    if adjective_ratio <= 0.05:
         flag = 1
         score = 0.9
         explanation = (
-            f"The adjective ratio ({adjective_ratio:.1%}) is good and healthy."
+            f"The qualitative adjective ratio ({adjective_ratio:.1%}) is excellent, "
+            f"indicating objective writing."
         )
-    elif adjective_ratio <= 0.20:
+    elif adjective_ratio <= 0.10:
         flag = 0
         score = 0.6
-        explanation = f"The adjective ratio ({adjective_ratio:.1%}) is moderate."
+        explanation = (
+            f"The qualitative adjective ratio ({adjective_ratio:.1%}) is moderate."
+        )
     else:
         flag = -1
         score = 0.3
-        explanation = f"The adjective ratio ({adjective_ratio:.1%}) is too high, suggesting opinionated content."
+        explanation = (
+            f"The qualitative adjective ratio ({adjective_ratio:.1%}) is too high, "
+            f"suggesting opinionated or sensationalist content."
+        )
 
     return Metric(
         id=metric_id,
-        criteria_name="Adjectives",
+        criteria_name="Qualitative Adjectives",
         explanation=explanation,
         flag=flag,
         score=score,
