@@ -1,0 +1,16 @@
+[
+    {
+        "id":0,
+        "criteria_name":"Pyramid",
+        "explanation":"The inverted piramid criteria for goo journalism is not respected.",
+        "flag":-1,
+        "score": 0.2
+    },
+    {
+        "id":1,
+        "criteria_name":"Adjectives",
+        "explanation":"The adjective ratio is good and healthy ",
+        "flag":1,
+        "score":0.9
+    }
+]
