@@ -6,6 +6,8 @@ Built for the [2025 MediaParty Hackathon](https://docs.google.com/presentation/d
 
 Powered by [Trust: NLP news and text analyzer](https://github.com/timmd-9216/trust)
 
+🎉 Won first prize at MediaParty Hackathon 2025 🏆 : [https://mediaparty.org/hackaton-2025](https://mediaparty.org/hackaton-2025) sponsored by The World Bank, Internet Society, Fundación Avina and FUNDAR.
+
 ---
 
 ## 🎯 What is MediaParty Trust API?
