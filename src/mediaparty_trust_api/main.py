@@ -32,11 +32,45 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="MediaParty Trust API",
-    description="API for analyzing article trust and credibility",
+    description="""
+    ## Journalism Quality Analysis System
+
+    An intelligent journalism quality analysis system that combines NLP with LLM-powered metrics
+    to evaluate article credibility and objectivity.
+
+    ### Features
+
+    * **LLM-Powered Adjective Analysis**: Uses OpenRouter + DSPy to distinguish qualitative
+      (opinionated) from descriptive (objective) adjectives
+    * **Multi-Metric Evaluation**: 4 complementary metrics for comprehensive article assessment
+    * **NLP Foundation**: Stanford Stanza for robust Spanish language processing
+
+    ### Metrics Evaluated
+
+    1. **Qualitative Adjectives**: Filters adjectives using LLM to identify opinion vs. objective language
+    2. **Word Count**: Evaluates article length and coverage depth
+    3. **Sentence Complexity**: Analyzes readability and writing sophistication
+    4. **Verb Tense Analysis**: Evaluates professional news reporting style
+
+    ### Getting Started
+
+    1. Navigate to the `/api/v1/analyze` endpoint below
+    2. Click "Try it out"
+    3. Use the pre-filled example or paste your own article
+    4. Click "Execute" to see the analysis results
+    """,
     version="0.1.0",
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
+    contact={
+        "name": "MediaParty Trust API",
+        "url": "https://github.com/your-repo/mediaparty-trust-api",
+    },
+    license_info={
+        "name": "License",
+        "url": "https://github.com/your-repo/mediaparty-trust-api/blob/main/LICENSE",
+    },
 )
 
 # # Configure CORS
