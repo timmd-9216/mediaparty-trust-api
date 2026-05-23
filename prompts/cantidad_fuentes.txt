@@ -1,0 +1,3 @@
+Identificar lo siguiente en la noticia:
+cantidad en número de fuentes citadas es decir si aparecen nombres propios o nombres de organismos oficiales u organizaciones de la sociedad civil
+frases entrecomilladas
