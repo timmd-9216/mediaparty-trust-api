@@ -63,27 +63,18 @@ The included Chrome extension transforms how you consume news:
 ## 📋 Requirements
 
 - Python 3.12+
-- Conda/Miniforge (recommended) or pip
 - OpenRouter API Key (optional, for LLM-powered adjective filtering)
 
 ---
 
 ## 🚀 Installation
 
-### With Conda (Recommended)
-
 ```bash
-# Activate conda environment
-source ~/miniforge3/bin/activate
-conda activate mediaparty-trust
+# Create and activate a virtual environment
+python3 -m venv .venv
+source .venv/bin/activate
 
 # Install dependencies
-pip install -e .
-```
-
-### With pip
-
-```bash
 pip install -e .
 ```
 
@@ -133,7 +124,7 @@ SITE_NAME=MediaParty Trust API
 ./run_api.sh
 
 # Option 2: Direct command
-source ~/miniforge3/bin/activate && conda activate mediaparty-trust && uvicorn mediaparty_trust_api.main:app --reload
+source .venv/bin/activate && uvicorn mediaparty_trust_api.main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`
