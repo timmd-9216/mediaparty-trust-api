@@ -248,6 +248,102 @@ Analyzes a journalistic article and returns trust metrics.
 
 ---
 
+## 🚢 Deployment to Google Cloud Run
+
+This project includes automated deployment to Google Cloud Run using GitHub Actions.
+
+### Prerequisites
+
+1. **Google Cloud Project**
+   - Create a GCP project at [console.cloud.google.com](https://console.cloud.google.com)
+   - Enable the following APIs:
+     - Cloud Run API
+     - Artifact Registry API
+     - Cloud Build API
+
+2. **Service Account**
+   - Create a service account with the following roles:
+     - Cloud Run Admin
+     - Storage Admin
+     - Artifact Registry Administrator
+   - Download the JSON key file
+
+3. **Artifact Registry Repository**
+   ```bash
+   gcloud artifacts repositories create cloud-run-source-deploy \
+     --repository-format=docker \
+     --location=us-central1 \
+     --description="Docker repository for Cloud Run"
+   ```
+
+### Setup GitHub Secrets
+
+Add the following secrets to your GitHub repository (`Settings` → `Secrets and variables` → `Actions`):
+
+- `GCP_PROJECT_ID`: Your GCP project ID
+- `GCP_REGION`: Deployment region (e.g., `us-central1`)
+- `GCP_SERVICE_NAME`: Service name (e.g., `mediaparty-trust-api`)
+- `GCP_SA_KEY`: Base64-encoded service account JSON key
+- `OPENROUTER_API_KEY`: Your OpenRouter API key
+
+To encode the service account key:
+```bash
+cat service-account-key.json | base64
+```
+
+### Deployment
+
+The deployment happens automatically:
+
+1. **Automatic**: Push to the `main` branch triggers deployment
+2. **Manual**: Go to `Actions` → `Deploy to Cloud Run` → `Run workflow`
+
+The workflow will:
+1. Build a Docker container
+2. Push to Artifact Registry
+3. Deploy to Cloud Run
+4. Test the deployment
+
+### Access Your Deployment
+
+After successful deployment, your API will be available at:
+```
+https://[SERVICE-NAME]-[RANDOM-HASH]-[REGION].a.run.app
+```
+
+Check the deployment logs in GitHub Actions for the exact URL.
+
+### Local Docker Testing
+
+Test the Docker container locally before deploying:
+
+```bash
+# Build the image
+docker build -t mediaparty-trust-api .
+
+# Run the container
+docker run -p 8080:8080 \
+  -e OPENROUTER_API_KEY=your_key_here \
+  mediaparty-trust-api
+
+# Test the endpoint
+curl http://localhost:8080/health
+```
+
+### Configuration
+
+The Cloud Run service is configured with:
+- **Memory**: 2GB
+- **CPU**: 2 vCPU
+- **Timeout**: 300 seconds
+- **Max instances**: 10
+- **Min instances**: 0 (scales to zero)
+- **Port**: 8080
+
+Adjust these in [.github/workflows/deploy-cloud-run.yml](.github/workflows/deploy-cloud-run.yml) as needed.
+
+---
+
 ## 🛠️ Development
 
 ### Adding New Metrics
