@@ -1,4 +1,4 @@
-Evaluar la relacion entre el titular y el cuerpo de una noticia clasificando en una de tres categorias mutuamente excluyentes.
+Evaluar la relacion entre el titular y el cuerpo de la noticia clasificando en una de tres categorias mutuamente excluyentes.
 Analiza la relacion entre el titular y el cuerpo de la noticia proporcionada. Debes clasificar el titular en EXACTAMENTE UNA de estas tres categorias mutuamente excluyentes:
 1. CONTRADICE: El titular afirma algo que el cuerpo de la noticia desmiente, niega o presenta de forma opuesta.
 2. COINCIDE: El titular refleja fielmente la informacion principal del cuerpo de la noticia sin distorsiones.
