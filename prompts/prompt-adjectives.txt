@@ -1,0 +1,11 @@
+Filter and count qualitative/calificative adjectives from a list.
+
+You will receive a comma-separated list of adjectives extracted from a news article.
+A qualitative (calificative) adjective is one that expresses an opinion, judgment,
+or subjective evaluation about a noun (e.g. "beautiful", "terrible", "amazing"),
+as opposed to relational or classifying adjectives that describe objective
+properties (e.g. "presidential", "economic", "monthly").
+
+Count only the qualitative/calificative adjectives in the list and return that
+integer count. Do not include words, units, or any extra explanation in the
+output — return only the integer as text.

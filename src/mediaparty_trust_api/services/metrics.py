@@ -11,6 +11,7 @@ import requests
 from stanza import Document
 
 from mediaparty_trust_api.models import Metric
+from mediaparty_trust_api.services.prompt_loader import load_dspy_signature
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -68,18 +69,10 @@ class OpenRouterLM(dspy.LM):
             raise ValueError(f"API error: {response.status_code} - {response.text}")
 
 
-class QualitativeAdjectiveFilter(dspy.Signature):
-    """Filter and count qualitative/calificative adjectives from a list."""
-
-    adjectives: str = dspy.InputField(
-        desc="Comma-separated list of adjectives extracted from a news article"
-    )
-    count: str = dspy.OutputField(
-        desc=(
-            "Return ONLY the integer number of qualitative/calificative adjectives. "
-            "No words, explanations, or units—just the integer as text."
-        )
-    )
+# Signature loaded from versioned prompt files at `prompts/prompt-adjectives.{txt,json}`.
+# The .txt file contains the instructions (optimizable by DSPy); the .json file
+# defines the structured input/output schema.
+QualitativeAdjectiveFilter = load_dspy_signature("adjectives")
 
 
 def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:

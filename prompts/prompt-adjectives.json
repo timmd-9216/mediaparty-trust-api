@@ -1,0 +1,15 @@
+{
+  "name": "QualitativeAdjectiveFilter",
+  "inputs": {
+    "adjectives": {
+      "type": "string",
+      "description": "Comma-separated list of adjectives extracted from a news article"
+    }
+  },
+  "outputs": {
+    "count": {
+      "type": "string",
+      "description": "Return ONLY the integer number of qualitative/calificative adjectives. No words, explanations, or units—just the integer as text."
+    }
+  }
+}
