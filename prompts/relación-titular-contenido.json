@@ -1,14 +1,24 @@
 {
-  "name": "Análisis de Titular vs Contenido de Noticia",
-  "description": "Prompt para evaluar la relación entre el titular y el texto de una noticia",
-  "version": "1.0",
+  "name": "Analisis de Titular vs Noticia",
+  "description": "Evalua la relacion entre el titular y el contenido de una noticia",
   "prompt": "Identificar en la noticia lo siguiente:\n- Cuál es el titular\n- Si lo que afirma el titular contradice el texto de la noticia\n- Si lo que afirma el titular coincide con el texto de la noticia\n- Si lo que afirma el titular aparece aunque sea parcialmente en el texto de la noticia",
-  "tasks": [
-    {
-      "id": 1,
-      "task": "Identificar el titular de la noticia",
-      "output": "string"
+  "input": {
+    "titular": "string",
+    "texto_noticia": "string"
+  },
+  "output": {
+    "titular_identificado": "string",
+    "contradice": {
+      "valor": "boolean",
+      "justificacion": "string"
     },
-    {
-      "id": 2,
-      "task": "Evaluar si el titular contradice el texto de la
+    "coincide": {
+      "valor": "boolean",
+      "justificacion": "string"
+    },
+    "aparece_parcialmente": {
+      "valor": "boolean",
+      "justificacion": "string"
+    }
+  }
+}
