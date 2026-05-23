@@ -1,6 +1,35 @@
-input
-     paratexto_nota: string
-     paratexto_contrxto: string
-output
-     signature: name / initials / nobody
-     responsible: list(author)/ list(responsible-editor) / group
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "paratexto": {
+          "type": "string"
+        }
+      },
+      "required": ["paratexto"]
+    },
+    "output": {
+      "type": "object",
+      "properties": {
+        "signature": {
+          "type": "string",
+          "enum": ["name", "initials", "nobody"]
+        },
+        "responsible": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["author", "responsible-editor", "group"]
+          }
+        }
+      },
+      "required": ["signature", "responsible"]
+    }
+  },
+  "required": ["input", "output"]
+}
+Copiá y pegá esto directamente en tu archivo .json de GitHub.
+
