@@ -1,3 +1,2 @@
 Identificar lo siguiente en la noticia:
-cantidad en número de fuentes citadas es decir si aparecen nombres propios o nombres de organismos oficiales u organizaciones de la sociedad civil
-frases entrecomilladas
+cantidad en número de fuentes citadas, es decir si aparecen nombres propios o nombres de organismos oficiales u organizaciones de la sociedad civil como sujeto de verbos de decir (como por ejemplo "dijo", "sostuvo", "declaró", "amenazó", "explicó"), seguidos de afirmaciones que pueden ser citas textuales (frases entrecomilladas) o no. 
