@@ -4,11 +4,15 @@ import json
 import logging
 import os
 import re
-from typing import List
+from typing import List, Optional
 
 import dspy
 import requests
-from stanza import Document
+
+try:
+    from stanza import Document
+except ImportError:
+    Document = None  # type: ignore
 
 from mediaparty_trust_api.models import Metric
 from mediaparty_trust_api.services.prompt_loader import load_dspy_signature, load_thresholds
@@ -20,13 +24,15 @@ logger = logging.getLogger(__name__)
 class OpenRouterLM(dspy.LM):
     """Custom DSPy LM that uses OpenRouter API directly."""
 
-    def __init__(self, model: str = "google/gemma-2-9b-it:free", **kwargs):
-        self.model = model
+    DEFAULT_MODEL = "google/gemma-4-31b-it:free"
+
+    def __init__(self, model: str | None = None, **kwargs):
+        self.model = model or os.getenv("OPENROUTER_MODEL", self.DEFAULT_MODEL)
         self.api_key = os.getenv("OPENROUTER_API_KEY")
         if not self.api_key:
             raise ValueError("OPENROUTER_API_KEY environment variable not set")
         self.kwargs = kwargs
-        super().__init__(model=model)
+        super().__init__(model=self.model)
 
     def __call__(self, prompt=None, messages=None, **kwargs):
         # Prepare messages
@@ -57,8 +63,11 @@ class OpenRouterLM(dspy.LM):
             result = response.json()
             if 'choices' in result and len(result['choices']) > 0:
                 content = result['choices'][0]['message']['content']
-                logger.info(f"OpenRouter API call successful. Response length: {len(content)} chars")
-                logger.debug(f"Response content: {content}")
+                logger.info(
+                    f"OpenRouter API call successful (model={self.model}, "
+                    f"response length={len(content)} chars)"
+                )
+                logger.info(f"Raw LLM response: {content!r}")
                 # Return in the format DSPy expects
                 return [content]
             else:
@@ -75,18 +84,18 @@ class OpenRouterLM(dspy.LM):
 QualitativeAdjectiveFilter = load_dspy_signature("adjectives")
 
 
-def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
+def get_adjective_count(text: str, metric_id: int = 1, doc: Optional[object] = None) -> Metric:
     """
-    Calculate qualitative adjective ratio metric from Stanza document.
+    Calculate qualitative adjective ratio metric.
 
-    Analyzes the proportion of qualitative/calificative adjectives in the text.
-    Uses DSPy with OpenRouter LM to filter only subjective adjectives that express opinion or judgment.
-    A healthy ratio indicates objective writing, while too many qualitative adjectives
-    may suggest opinionated or sensationalist content.
+    When a Stanza Document is provided, uses POS-tagged adjectives for precision.
+    Otherwise, delegates directly to the LLM to identify qualitative adjectives
+    from the raw text, without a pre-filtered list.
 
     Args:
-        doc: Stanza Document object with linguistic annotations
+        text: Raw article text (always required)
         metric_id: Unique identifier for this metric
+        doc: Optional Stanza Document; when present adjectives are POS-extracted first
 
     Returns:
         Metric object with qualitative adjective analysis results
@@ -94,16 +103,20 @@ def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
     total_words = 0
     adjectives: List[str] = []
 
-    # Iterate through all sentences and words to collect adjectives
-    for sentence in doc.sentences:
-        for word in sentence.words:
-            total_words += 1
-            # ADJ is the universal POS tag for adjectives
-            if word.upos == "ADJ":
-                adjectives.append(word.text)
+    if doc is not None:
+        # Precise path: extract adjectives via POS tags
+        for sentence in doc.sentences:
+            for word in sentence.words:
+                total_words += 1
+                if word.upos == "ADJ":
+                    adjectives.append(word.text)
+    else:
+        # Fallback: count words from plain text; adjective list left empty
+        # (LLM will work on the full text string instead)
+        total_words = len(text.split())
 
-    # If no adjectives found, return early
-    if not adjectives:
+    # If no adjectives found (and we have a doc), return early
+    if doc is not None and not adjectives:
         return Metric(
             id=metric_id,
             criteria_name="Qualitative Adjectives",
@@ -116,21 +129,22 @@ def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
     openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
     if not openrouter_api_key:
         # No filtering - use all adjectives if no API key configured
-        qualitative_adjective_count = len(adjectives)
+        qualitative_adjective_count = len(adjectives) if adjectives else 0
         logger.warning("OPENROUTER_API_KEY not set, using all adjectives without filtering")
     else:
         logger.info("Attempting OpenRouter filtering for qualitative adjectives")
         filtered_with_llm = False
         try:
             # Configure DSPy with custom OpenRouter LM inside a context so async tasks don't conflict
-            lm = OpenRouterLM(model="google/gemma-2-9b-it:free")
+            # Model is configurable via OPENROUTER_MODEL env var
+            lm = OpenRouterLM()
             with dspy.context(lm=lm):
                 # Create DSPy module with signature for input/output validation
                 filter_module = dspy.ChainOfThought(QualitativeAdjectiveFilter)
 
-                # Call the module with adjectives
-                adjectives_str = ", ".join(adjectives)
-                logger.info(f"Filtering {len(adjectives)} adjectives with LLM")
+                # If we have a POS-extracted list use it; otherwise pass the full text
+                adjectives_str = ", ".join(adjectives) if adjectives else text
+                logger.info(f"Filtering {'adjectives list' if adjectives else 'full text'} with LLM")
                 result = filter_module(adjectives=adjectives_str)
 
                 # Extract the count from validated output; tolerate stray characters
@@ -159,7 +173,8 @@ def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
                 )
 
     # Calculate ratio using qualitative adjectives only
-    adjective_ratio = qualitative_adjective_count / total_words if total_words > 0 else 0
+    _total = total_words if total_words > 0 else len(text.split()) or 1
+    adjective_ratio = qualitative_adjective_count / _total
 
     # Load thresholds from prompt JSON
     th = load_thresholds("adjectives")
@@ -196,21 +211,25 @@ def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
     )
 
 
-def get_word_count(doc: Document, metric_id: int = 2) -> Metric:
+def get_word_count(text: str, metric_id: int = 2, doc: Optional[object] = None) -> Metric:
     """
-    Calculate total word count metric from Stanza document.
+    Calculate total word count metric.
 
-    Analyzes the length of the text. Longer articles tend to be more
-    comprehensive and well-researched.
+    Uses Stanza token counts when a Document is available; falls back to
+    simple whitespace splitting on plain text.
 
     Args:
-        doc: Stanza Document object with linguistic annotations
+        text: Raw article text (always required)
         metric_id: Unique identifier for this metric
+        doc: Optional Stanza Document for precise tokenisation
 
     Returns:
         Metric object with word count analysis results
     """
-    total_words = sum(len(sentence.words) for sentence in doc.sentences)
+    if doc is not None:
+        total_words = sum(len(sentence.words) for sentence in doc.sentences)
+    else:
+        total_words = len(text.split())
 
     # Load thresholds from prompt JSON
     th = load_thresholds("word-count")
@@ -244,32 +263,44 @@ def get_word_count(doc: Document, metric_id: int = 2) -> Metric:
     )
 
 
-def get_sentence_complexity(doc: Document, metric_id: int = 3) -> Metric:
+def get_sentence_complexity(text: str, metric_id: int = 3, doc: Optional[object] = None) -> Metric:
     """
-    Calculate average sentence length metric from Stanza document.
+    Calculate average sentence length metric.
 
-    Analyzes sentence complexity through average word count per sentence.
-    Moderate sentence length indicates readable and well-structured writing.
+    Uses Stanza sentence/token counts when a Document is available; falls back
+    to regex sentence splitting and whitespace word counting on plain text.
 
     Args:
-        doc: Stanza Document object with linguistic annotations
+        text: Raw article text (always required)
         metric_id: Unique identifier for this metric
+        doc: Optional Stanza Document for precise tokenisation
 
     Returns:
         Metric object with sentence complexity analysis results
     """
-    sentence_count = len(doc.sentences)
-
-    if sentence_count == 0:
-        return Metric(
-            id=metric_id,
-            criteria_name="Sentence Complexity",
-            explanation="No sentences found in the text.",
-            flag=-1,
-            score=0.0,
-        )
-
-    total_words = sum(len(sentence.words) for sentence in doc.sentences)
+    if doc is not None:
+        sentence_count = len(doc.sentences)
+        if sentence_count == 0:
+            return Metric(
+                id=metric_id,
+                criteria_name="Sentence Complexity",
+                explanation="No sentences found in the text.",
+                flag=-1,
+                score=0.0,
+            )
+        total_words = sum(len(sentence.words) for sentence in doc.sentences)
+    else:
+        sentences = [s.strip() for s in re.split(r'[.!?]+', text) if s.strip()]
+        sentence_count = len(sentences)
+        if sentence_count == 0:
+            return Metric(
+                id=metric_id,
+                criteria_name="Sentence Complexity",
+                explanation="No sentences found in the text.",
+                flag=-1,
+                score=0.0,
+            )
+        total_words = sum(len(s.split()) for s in sentences)
     avg_sentence_length = total_words / sentence_count
 
     # Load thresholds from prompt JSON
@@ -313,29 +344,37 @@ def get_sentence_complexity(doc: Document, metric_id: int = 3) -> Metric:
     )
 
 
-def get_verb_tense_analysis(doc: Document, metric_id: int = 4) -> Metric:
+def get_verb_tense_analysis(text: str, metric_id: int = 4, doc: Optional[object] = None) -> Metric:
     """
     Analyze verb tense distribution in the document.
 
-    News articles typically use past tense for reporting events.
-    A healthy distribution suggests objective reporting.
+    Requires a Stanza Document for POS/feature analysis. When unavailable,
+    returns a metric indicating the NLP service is offline.
 
     Args:
-        doc: Stanza Document object with linguistic annotations
+        text: Raw article text (always required)
         metric_id: Unique identifier for this metric
+        doc: Optional Stanza Document; metric is N/A without it
 
     Returns:
         Metric object with verb tense analysis results
     """
+    if doc is None:
+        return Metric(
+            id=metric_id,
+            criteria_name="Verb Tense",
+            explanation="Verb tense analysis requires the NLP service (Stanza). Currently unavailable.",
+            flag=0,
+            score=0.0,
+        )
+
     verb_count = 0
     past_tense_count = 0
 
     for sentence in doc.sentences:
         for word in sentence.words:
-            # VERB is the universal POS tag for verbs
             if word.upos == "VERB":
                 verb_count += 1
-                # Check if verb is in past tense
                 if word.feats and "Tense=Past" in word.feats:
                     past_tense_count += 1
 

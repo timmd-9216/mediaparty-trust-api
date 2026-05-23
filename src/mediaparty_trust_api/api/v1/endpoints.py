@@ -30,25 +30,18 @@ async def analyze_article(article: ArticleInput) -> List[Metric]:
         List of Metric objects with analysis results for different criteria
     """
     try:
-        # Check if Stanza is initialized
-        if not stanza_service.is_initialized:
-            raise HTTPException(
-                status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-                detail="NLP service not initialized. Please try again later.",
-            )
-
         # Combine title and body for full text analysis
         full_text = f"{article.title}. {article.body}"
 
-        # Create Stanza document
-        doc = stanza_service.create_doc(full_text)
+        # Create Stanza document if available; metrics degrade gracefully without it
+        doc = stanza_service.create_doc(full_text) if stanza_service.is_initialized else None
 
-        # Calculate metrics using Stanza analysis
+        # Calculate metrics; each function accepts text + optional doc
         metrics = [
-            get_adjective_count(doc, metric_id=0),
-            get_word_count(doc, metric_id=1),
-            get_sentence_complexity(doc, metric_id=2),
-            get_verb_tense_analysis(doc, metric_id=3),
+            get_adjective_count(full_text, metric_id=0, doc=doc),
+            get_word_count(full_text, metric_id=1, doc=doc),
+            get_sentence_complexity(full_text, metric_id=2, doc=doc),
+            get_verb_tense_analysis(full_text, metric_id=3, doc=doc),
         ]
 
         return metrics

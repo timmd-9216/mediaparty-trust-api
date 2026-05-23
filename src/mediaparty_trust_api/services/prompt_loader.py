@@ -106,6 +106,113 @@ def load_dspy_signature(name: str) -> Type[dspy.Signature]:
     return signature_cls
 
 
+def list_prompts() -> list[dict]:
+    """List all prompt definitions available under ``prompts/``.
+
+    Each entry is a dict with ``name`` (short id), ``signature`` (class name
+    declared in the JSON), ``has_thresholds`` and ``has_llm_signature`` flags.
+    A prompt is considered LLM-driven when its JSON declares both ``inputs``
+    and ``outputs``.
+    """
+    prompts: list[dict] = []
+    if not PROMPTS_DIR.is_dir():
+        return prompts
+
+    for json_path in sorted(PROMPTS_DIR.glob("prompt-*.json")):
+        name = json_path.stem.removeprefix("prompt-")
+        try:
+            schema = json.loads(json_path.read_text(encoding="utf-8"))
+        except Exception as e:
+            logger.warning("Skipping malformed prompt schema %s: %s", json_path.name, e)
+            continue
+        prompts.append({
+            "name": name,
+            "signature": schema.get("name", ""),
+            "has_thresholds": bool(schema.get("thresholds")),
+            "has_llm_signature": bool(schema.get("inputs") and schema.get("outputs")),
+        })
+    return prompts
+
+
+def validate_prompts() -> dict:
+    """Validate every ``prompt-*.json`` (and its sibling ``.txt``) under ``prompts/``.
+
+    Performs the following checks per prompt:
+
+    - ``.json`` parses as valid JSON
+    - ``name`` is present
+    - If ``inputs``/``outputs`` are declared, every field has a supported ``type``
+    - The matching ``.txt`` exists and is non-empty
+    - If the prompt is LLM-driven (has both ``inputs`` and ``outputs``), the
+      DSPy signature can actually be built via :func:`load_dspy_signature`
+    - Threshold bands, if present, are dicts
+
+    Returns:
+        Dict with ``valid`` (list of names), ``errors`` (list of {name, error})
+        and ``total`` count.
+    """
+    valid: list[str] = []
+    errors: list[dict] = []
+    skipped: list[dict] = []
+
+    if not PROMPTS_DIR.is_dir():
+        return {"valid": valid, "errors": errors, "skipped": skipped, "total": 0}
+
+    json_paths = sorted(PROMPTS_DIR.glob("prompt-*.json"))
+    for json_path in json_paths:
+        name = json_path.stem.removeprefix("prompt-")
+        txt_path = PROMPTS_DIR / f"prompt-{name}.txt"
+        try:
+            schema = json.loads(json_path.read_text(encoding="utf-8"))
+
+            # Files that don't follow our convention (no name AND no recognizable
+            # fields) are treated as drafts and skipped rather than failed.
+            recognizable = any(
+                k in schema for k in ("name", "inputs", "outputs", "thresholds")
+            )
+            if not recognizable:
+                skipped.append({"name": name, "reason": "non-standard schema (draft)"})
+                continue
+
+            if not schema.get("name"):
+                raise ValueError("missing 'name' in JSON schema")
+
+            inputs = schema.get("inputs") or {}
+            outputs = schema.get("outputs") or {}
+
+            for field_name, spec in {**inputs, **outputs}.items():
+                type_name = (spec or {}).get("type", "string")
+                if type_name.lower() not in _TYPE_MAP:
+                    raise ValueError(
+                        f"unsupported type '{type_name}' on field '{field_name}'"
+                    )
+
+            if not txt_path.is_file():
+                raise FileNotFoundError(f"missing sibling text file {txt_path.name}")
+            if not txt_path.read_text(encoding="utf-8").strip():
+                raise ValueError(f"text file {txt_path.name} is empty")
+
+            thresholds = schema.get("thresholds")
+            if thresholds is not None and not isinstance(thresholds, dict):
+                raise ValueError("'thresholds' must be a JSON object")
+
+            # If both inputs and outputs are present we treat it as LLM-driven
+            # and try to build the DSPy signature to catch any structural errors.
+            if inputs and outputs:
+                load_dspy_signature(name)
+
+            valid.append(name)
+        except Exception as e:
+            errors.append({"name": name, "error": str(e)})
+
+    return {
+        "valid": valid,
+        "errors": errors,
+        "skipped": skipped,
+        "total": len(json_paths),
+    }
+
+
 def load_thresholds(name: str) -> dict:
     """Load thresholds definition from ``prompt-<name>.json``.
 
