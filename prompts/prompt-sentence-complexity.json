@@ -1,0 +1,38 @@
+{
+  "name": "SentenceComplexityEvaluator",
+  "inputs": {
+    "avg_sentence_length": {
+      "type": "number",
+      "description": "Average number of words per sentence in the article"
+    },
+    "sentence_count": {
+      "type": "integer",
+      "description": "Total number of sentences (0 means empty text)"
+    }
+  },
+  "outputs": {
+    "criteria_name": {
+      "type": "string",
+      "description": "Always the literal string 'Sentence Complexity'"
+    },
+    "flag": {
+      "type": "integer",
+      "description": "-1 (negative), 0 (neutral), or 1 (positive)"
+    },
+    "score": {
+      "type": "number",
+      "description": "Score in [0.0, 1.0] reflecting readability"
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Short human-readable justification mentioning the average sentence length"
+    }
+  },
+  "thresholds": {
+    "optimal":      {"min": 15, "max": 25, "flag": 1,  "score": 0.9},
+    "acceptable_low":  {"min": 10, "max": 15, "flag": 0,  "score": 0.6},
+    "acceptable_high": {"min": 25, "max": 35, "flag": 0,  "score": 0.6},
+    "too_short":    {"min": 0,  "max": 10, "flag": -1, "score": 0.3},
+    "too_long":     {"min": 35, "max": null,"flag": -1, "score": 0.3}
+  }
+}

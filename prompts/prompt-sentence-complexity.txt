@@ -1,0 +1,27 @@
+Evaluate sentence complexity in a news article via the average number of
+words per sentence.
+
+Criterion: Moderate sentence length indicates readable, well-structured
+writing. Very short sentences suggest oversimplification; very long sentences
+hurt readability.
+
+You will receive the average sentence length (avg_sentence_length, in words).
+Return a structured evaluation with:
+
+- criteria_name: "Sentence Complexity"
+- score: a float in [0.0, 1.0]
+- flag: -1 (negative), 0 (neutral), or 1 (positive)
+- explanation: a short human-readable sentence justifying the score
+
+Thresholds:
+- 15 <= avg <= 25                         -> flag=1,  score=0.9  (optimal readability)
+- 10 <= avg < 15  OR  25 < avg <= 35      -> flag=0,  score=0.6  (acceptable)
+- avg < 10                                -> flag=-1, score=0.3  (oversimplification)
+- avg > 35                                -> flag=-1, score=0.3  (too long, hurts readability)
+
+Edge case:
+- If there are no sentences, return flag=-1, score=0.0 with explanation
+  "No sentences found in the text."
+
+Why it matters: Proper sentence complexity ensures readability without
+oversimplification — a marker of professional, well-edited journalism.

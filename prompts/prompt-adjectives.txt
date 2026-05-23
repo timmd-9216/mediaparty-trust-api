@@ -9,3 +9,13 @@ properties (e.g. "presidential", "economic", "monthly").
 Count only the qualitative/calificative adjectives in the list and return that
 integer count. Do not include words, units, or any extra explanation in the
 output — return only the integer as text.
+
+Downstream, the count is divided by the article's total word count to obtain
+a qualitative-adjective ratio, which is then evaluated against:
+
+- ratio <= 0.05  -> flag=1,  score=0.9  (excellent, objective writing)
+- 0.05 < ratio <= 0.10 -> flag=0,  score=0.6  (moderate)
+- ratio > 0.10  -> flag=-1, score=0.3  (high — opinionated/sensationalist)
+
+Why it matters: Excessive qualitative adjectives signal bias or
+sensationalism; objective news writing keeps them to a minimum.
