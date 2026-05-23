@@ -11,7 +11,7 @@ import requests
 from stanza import Document
 
 from mediaparty_trust_api.models import Metric
-from mediaparty_trust_api.services.prompt_loader import load_dspy_signature
+from mediaparty_trust_api.services.prompt_loader import load_dspy_signature, load_thresholds
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -161,24 +161,27 @@ def get_adjective_count(doc: Document, metric_id: int = 1) -> Metric:
     # Calculate ratio using qualitative adjectives only
     adjective_ratio = qualitative_adjective_count / total_words if total_words > 0 else 0
 
-    # Define thresholds for evaluation
-    # Typical news articles should have minimal qualitative adjectives (< 5%)
-    if adjective_ratio <= 0.05:
-        flag = 1
-        score = 0.9
+    # Load thresholds from prompt JSON
+    th = load_thresholds("adjectives")
+    excellent_max = th.get("excellent", {}).get("max_ratio", 0.05)
+    moderate_max = th.get("moderate", {}).get("max_ratio", 0.10)
+
+    if adjective_ratio <= excellent_max:
+        flag = th.get("excellent", {}).get("flag", 1)
+        score = th.get("excellent", {}).get("score", 0.9)
         explanation = (
             f"The qualitative adjective ratio ({adjective_ratio:.1%}) is excellent, "
             f"indicating objective writing."
         )
-    elif adjective_ratio <= 0.10:
-        flag = 0
-        score = 0.6
+    elif adjective_ratio <= moderate_max:
+        flag = th.get("moderate", {}).get("flag", 0)
+        score = th.get("moderate", {}).get("score", 0.6)
         explanation = (
             f"The qualitative adjective ratio ({adjective_ratio:.1%}) is moderate."
         )
     else:
-        flag = -1
-        score = 0.3
+        flag = th.get("high", {}).get("flag", -1)
+        score = th.get("high", {}).get("score", 0.3)
         explanation = (
             f"The qualitative adjective ratio ({adjective_ratio:.1%}) is too high, "
             f"suggesting opinionated or sensationalist content."
@@ -209,20 +212,25 @@ def get_word_count(doc: Document, metric_id: int = 2) -> Metric:
     """
     total_words = sum(len(sentence.words) for sentence in doc.sentences)
 
-    # Define thresholds
-    if total_words >= 500:
-        flag = 1
-        score = 0.9
+    # Load thresholds from prompt JSON
+    th = load_thresholds("word-count")
+    comprehensive = th.get("comprehensive", {})
+    adequate = th.get("adequate", {})
+    too_brief = th.get("too_brief", {})
+
+    if total_words >= comprehensive.get("min_words", 500):
+        flag = comprehensive.get("flag", 1)
+        score = comprehensive.get("score", 0.9)
         explanation = (
             f"The article has {total_words} words, indicating comprehensive coverage."
         )
-    elif total_words >= 300:
-        flag = 0
-        score = 0.6
+    elif total_words >= adequate.get("min_words", 300):
+        flag = adequate.get("flag", 0)
+        score = adequate.get("score", 0.6)
         explanation = f"The article has {total_words} words, which is adequate."
     else:
-        flag = -1
-        score = 0.3
+        flag = too_brief.get("flag", -1)
+        score = too_brief.get("score", 0.3)
         explanation = (
             f"The article has only {total_words} words, which may be too brief."
         )
@@ -264,21 +272,34 @@ def get_sentence_complexity(doc: Document, metric_id: int = 3) -> Metric:
     total_words = sum(len(sentence.words) for sentence in doc.sentences)
     avg_sentence_length = total_words / sentence_count
 
-    # Define thresholds (ideal range: 15-25 words per sentence)
-    if 15 <= avg_sentence_length <= 25:
-        flag = 1
-        score = 0.9
+    # Load thresholds from prompt JSON
+    th = load_thresholds("sentence-complexity")
+    optimal = th.get("optimal", {})
+    acceptable_low = th.get("acceptable_low", {})
+    acceptable_high = th.get("acceptable_high", {})
+    too_short = th.get("too_short", {})
+    too_long = th.get("too_long", {})
+
+    opt_min, opt_max = optimal.get("min", 15), optimal.get("max", 25)
+    acc_low_min, acc_low_max = acceptable_low.get("min", 10), acceptable_low.get("max", 15)
+    acc_high_min, acc_high_max = acceptable_high.get("min", 25), acceptable_high.get("max", 35)
+    short_max = too_short.get("max", 10)
+    long_min = too_long.get("min", 35)
+
+    if opt_min <= avg_sentence_length <= opt_max:
+        flag = optimal.get("flag", 1)
+        score = optimal.get("score", 0.9)
         explanation = f"Average sentence length ({avg_sentence_length:.1f} words) is optimal for readability."
-    elif 10 <= avg_sentence_length < 15 or 25 < avg_sentence_length <= 35:
-        flag = 0
-        score = 0.6
+    elif acc_low_min <= avg_sentence_length < acc_low_max or acc_high_min < avg_sentence_length <= acc_high_max:
+        flag = acceptable_low.get("flag", 0)
+        score = acceptable_low.get("score", 0.6)
         explanation = (
             f"Average sentence length ({avg_sentence_length:.1f} words) is acceptable."
         )
     else:
-        flag = -1
-        score = 0.3
-        if avg_sentence_length < 10:
+        flag = too_short.get("flag", -1)
+        score = too_short.get("score", 0.3)
+        if avg_sentence_length < short_max:
             explanation = f"Sentences are too short ({avg_sentence_length:.1f} words on average), suggesting oversimplification."
         else:
             explanation = f"Sentences are too long ({avg_sentence_length:.1f} words on average), which may affect readability."
@@ -329,18 +350,31 @@ def get_verb_tense_analysis(doc: Document, metric_id: int = 4) -> Metric:
 
     past_tense_ratio = past_tense_count / verb_count
 
-    # News articles typically have 40-70% past tense verbs
-    if 0.4 <= past_tense_ratio <= 0.7:
-        flag = 1
-        score = 0.85
+    # Load thresholds from prompt JSON
+    th = load_thresholds("verb-tense")
+    appropriate = th.get("appropriate", {})
+    acceptable_low = th.get("acceptable_low", {})
+    acceptable_high = th.get("acceptable_high", {})
+    unusual_low = th.get("unusual_low", {})
+    unusual_high = th.get("unusual_high", {})
+
+    app_min, app_max = appropriate.get("min_ratio", 0.4), appropriate.get("max_ratio", 0.7)
+    acc_low_min, acc_low_max = acceptable_low.get("min_ratio", 0.2), acceptable_low.get("max_ratio", 0.4)
+    acc_high_min, acc_high_max = acceptable_high.get("min_ratio", 0.7), acceptable_high.get("max_ratio", 0.85)
+    un_low_max = unusual_low.get("max_ratio", 0.2)
+    un_high_min = unusual_high.get("min_ratio", 0.85)
+
+    if app_min <= past_tense_ratio <= app_max:
+        flag = appropriate.get("flag", 1)
+        score = appropriate.get("score", 0.85)
         explanation = f"Past tense usage ({past_tense_ratio:.1%}) suggests appropriate news reporting style."
-    elif 0.2 <= past_tense_ratio < 0.4 or 0.7 < past_tense_ratio <= 0.85:
-        flag = 0
-        score = 0.6
+    elif acc_low_min <= past_tense_ratio < acc_low_max or acc_high_min < past_tense_ratio <= acc_high_max:
+        flag = acceptable_low.get("flag", 0)
+        score = acceptable_low.get("score", 0.6)
         explanation = f"Past tense usage ({past_tense_ratio:.1%}) is acceptable but could be more balanced."
     else:
-        flag = -1
-        score = 0.3
+        flag = unusual_low.get("flag", -1)
+        score = unusual_low.get("score", 0.3)
         explanation = (
             f"Past tense usage ({past_tense_ratio:.1%}) is unusual for news reporting."
         )

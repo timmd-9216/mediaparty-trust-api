@@ -104,3 +104,27 @@ def load_dspy_signature(name: str) -> Type[dspy.Signature]:
         "Loaded DSPy signature '%s' from %s + %s", class_name, txt_path.name, json_path.name
     )
     return signature_cls
+
+
+def load_thresholds(name: str) -> dict:
+    """Load thresholds definition from ``prompt-<name>.json``.
+
+    Args:
+        name: Metric short name (e.g. ``"word-count"``).
+
+    Returns:
+        Dict with the ``thresholds`` key from the JSON schema, or empty dict
+        if the metric has no thresholds defined.
+
+    Raises:
+        FileNotFoundError: If the JSON file does not exist.
+    """
+    json_path = PROMPTS_DIR / f"prompt-{name}.json"
+
+    if not json_path.is_file():
+        raise FileNotFoundError(f"Prompt schema file not found: {json_path}")
+
+    schema = json.loads(json_path.read_text(encoding="utf-8"))
+    thresholds = schema.get("thresholds", {})
+    logger.debug("Loaded thresholds for '%s' from %s", name, json_path.name)
+    return thresholds
