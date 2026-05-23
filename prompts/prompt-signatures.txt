@@ -4,4 +4,4 @@ Identificar en la noticia lo siguiente:
 2. si la nota está inicialada, es decir, si aparecen las iniciales de quien la redacta o edita al final del texto
 3. si en alguna parte del paratexto general del sitio web aparece el nombre del editor responsable o director del medio
 4. si alguna parte del paratexto general del sitio web aparece el nombre del grupo editor, empresa o razón social
-si no se cumple ninguna de las anteriores
+5. si no se cumple ninguna de las anteriores
