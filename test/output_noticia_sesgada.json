@@ -2,9 +2,9 @@
     {
         "id": 0,
         "criteria_name": "Qualitative Adjectives",
-        "explanation": "The qualitative adjective ratio (17.4%) is too high, suggesting opinionated or sensationalist content.",
-        "flag": -1,
-        "score": 0.3
+        "explanation": "The qualitative adjective ratio (0.0%) is excellent, indicating objective writing.",
+        "flag": 1,
+        "score": 0.9
     },
     {
         "id": 1,
@@ -22,6 +22,13 @@
     },
     {
         "id": 3,
+        "criteria_name": "Title-Content Relation",
+        "explanation": "LLM evaluation failed: API error: 429 - {\"error\":{\"message\":\"Provider returned error\",\"code\":429,\"metadata\":{\"raw\":\"google/gemma-4-31b-it:free is temporarily rate-limited upstream. Please retry shortly, or add your own key to accumulate your rate limits: https://openrouter.ai/settings/integrations\",\"provider_name\":\"Google AI Studio\",\"is_byok\":false}},\"user_id\":\"user_32VtNN4Aaieg6cz8LQzI602qyLU\"}",
+        "flag": 0,
+        "score": 0.0
+    },
+    {
+        "id": 4,
         "criteria_name": "Verb Tense",
         "explanation": "Verb tense analysis requires the NLP service (Stanza). Currently unavailable.",
         "flag": 0,

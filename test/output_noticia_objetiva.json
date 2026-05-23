@@ -22,6 +22,13 @@
     },
     {
         "id": 3,
+        "criteria_name": "Title-Content Relation",
+        "explanation": "El titular coincide con el cuerpo. El titular refleja fielmente la informaci\u00f3n del texto, donde se especifica que el Banco Central subi\u00f3 la tasa de inter\u00e9s \"llev\u00e1ndola al 97% anual\".",
+        "flag": 1,
+        "score": 1.0
+    },
+    {
+        "id": 4,
         "criteria_name": "Verb Tense",
         "explanation": "Verb tense analysis requires the NLP service (Stanza). Currently unavailable.",
         "flag": 0,

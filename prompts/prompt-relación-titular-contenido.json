@@ -1,23 +1,28 @@
 {
-  "name": "Analisis de Titular vs Contenido",
-  "description": "Evalua la relacion entre el titular y el cuerpo de una noticia clasificando en una de tres categorias mutuamente excluyentes",
-  "prompt": "Analiza la relacion entre el titular y el cuerpo de la noticia proporcionada. Debes clasificar el titular en EXACTAMENTE UNA de estas tres categorias mutuamente excluyentes:\n\n1. CONTRADICE: El titular afirma algo que el cuerpo de la noticia desmiente, niega o presenta de forma opuesta.\n2. COINCIDE: El titular refleja fielmente la informacion principal del cuerpo de la noticia sin distorsiones.\n3. COINCIDE EN PARTE: El titular contiene elementos que aparecen en el cuerpo, pero exagera, omite contexto crucial, o presenta la informacion de forma sesgada o incompleta.\n\nInstrucciones:\n- Identifica el titular exacto de la noticia\n- Lee atentamente el cuerpo completo\n- Determina cual de las tres categorias aplica (solo una)\n- Justifica tu clasificacion citando elementos especificos del texto\n- Si hay duda entre COINCIDE y COINCIDE EN PARTE, elige COINCIDE EN PARTE cuando detectes cualquier exageracion, omision relevante o sesgo",
-  "input": {
-    "titular": "string",
-    "texto_noticia": "string"
-  },
-  "output": {
-    "titular_identificado": "string",
-    "clasificacion": {
-      "tipo": "string (enum: ['CONTRADICE', 'COINCIDE', 'COINCIDE_EN_PARTE'])",
-      "confianza": "number (0.0 a 1.0)",
-      "justificacion": "string"
+  "name": "TitularContenidoEvaluator",
+  "inputs": {
+    "titular": {
+      "type": "string",
+      "description": "Titular de la noticia"
     },
-    "analisis_detallado": {
-      "afirmaciones_titular": ["string"],
-      "hechos_verificados": ["string"],
-      "elementos_distorsionados": ["string"],
-      "elementos_omitidos": ["string"]
+    "texto_noticia": {
+      "type": "string",
+      "description": "Cuerpo completo de la noticia"
     }
+  },
+  "outputs": {
+    "clasificacion": {
+      "type": "string",
+      "description": "Una de estas tres etiquetas EXACTAS (sin acentos): CONTRADICE | COINCIDE | COINCIDE_EN_PARTE"
+    },
+    "justificacion": {
+      "type": "string",
+      "description": "Justificación breve (una oración) citando elementos del texto"
+    }
+  },
+  "thresholds": {
+    "COINCIDE":          {"flag": 1,  "score": 1.0},
+    "COINCIDE_EN_PARTE": {"flag": 0,  "score": 0.5},
+    "CONTRADICE":        {"flag": -1, "score": 0.0}
   }
 }

@@ -344,6 +344,88 @@ def get_sentence_complexity(text: str, metric_id: int = 3, doc: Optional[object]
     )
 
 
+TitularContenidoEvaluator = load_dspy_signature("relación-titular-contenido")
+
+
+def get_titular_content_relation(title: str, body: str, metric_id: int = 4) -> Metric:
+    """
+    Classify the relationship between an article's headline and body.
+
+    Uses the LLM (via OpenRouter + DSPy) to classify the headline as one of:
+    ``COINCIDE``, ``COINCIDE_EN_PARTE`` or ``CONTRADICE`` and maps the
+    classification to a ``flag``/``score`` via thresholds defined in
+    ``prompts/prompt-relación-titular-contenido.json``.
+
+    Args:
+        title: Article headline.
+        body: Article body text.
+        metric_id: Unique identifier for this metric.
+
+    Returns:
+        Metric object with the classification result.
+    """
+    th = load_thresholds("relación-titular-contenido")
+
+    if not os.getenv("OPENROUTER_API_KEY"):
+        return Metric(
+            id=metric_id,
+            criteria_name="Title-Content Relation",
+            explanation="LLM not configured (OPENROUTER_API_KEY missing).",
+            flag=0,
+            score=0.0,
+        )
+
+    try:
+        lm = OpenRouterLM()
+        with dspy.context(lm=lm):
+            module = dspy.ChainOfThought(TitularContenidoEvaluator)
+            result = module(titular=title, texto_noticia=body)
+            raw_label = str(getattr(result, "clasificacion", "")).strip().upper()
+            justificacion = str(getattr(result, "justificacion", "")).strip()
+    except Exception as e:
+        logger.error(f"Title-content LLM call failed: {e}")
+        return Metric(
+            id=metric_id,
+            criteria_name="Title-Content Relation",
+            explanation=f"LLM evaluation failed: {e}",
+            flag=0,
+            score=0.0,
+        )
+
+    # Normalise the label: tolerate spaces, accents, dashes
+    normalised = raw_label.replace(" ", "_").replace("-", "_")
+    label = "COINCIDE_EN_PARTE" if "PARTE" in normalised else (
+        "CONTRADICE" if "CONTRADICE" in normalised else (
+            "COINCIDE" if "COINCIDE" in normalised else None
+        )
+    )
+
+    if label is None:
+        return Metric(
+            id=metric_id,
+            criteria_name="Title-Content Relation",
+            explanation=f"Could not parse LLM label from: {raw_label!r}",
+            flag=0,
+            score=0.0,
+        )
+
+    band = th.get(label, {})
+    flag = band.get("flag", 0)
+    score = band.get("score", 0.0)
+    explanation = (
+        f"El titular {label.replace('_', ' ').lower()} con el cuerpo. "
+        f"{justificacion}".strip()
+    )
+
+    return Metric(
+        id=metric_id,
+        criteria_name="Title-Content Relation",
+        explanation=explanation,
+        flag=flag,
+        score=score,
+    )
+
+
 def get_verb_tense_analysis(text: str, metric_id: int = 4, doc: Optional[object] = None) -> Metric:
     """
     Analyze verb tense distribution in the document.

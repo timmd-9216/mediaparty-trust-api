@@ -8,6 +8,7 @@ from mediaparty_trust_api.models import ArticleInput, Metric
 from mediaparty_trust_api.services.metrics import (
     get_adjective_count,
     get_sentence_complexity,
+    get_titular_content_relation,
     get_verb_tense_analysis,
     get_word_count,
 )
@@ -41,7 +42,8 @@ async def analyze_article(article: ArticleInput) -> List[Metric]:
             get_adjective_count(full_text, metric_id=0, doc=doc),
             get_word_count(full_text, metric_id=1, doc=doc),
             get_sentence_complexity(full_text, metric_id=2, doc=doc),
-            get_verb_tense_analysis(full_text, metric_id=3, doc=doc),
+            get_titular_content_relation(article.title, article.body, metric_id=3),
+            get_verb_tense_analysis(full_text, metric_id=4, doc=doc),
         ]
 
         return metrics
