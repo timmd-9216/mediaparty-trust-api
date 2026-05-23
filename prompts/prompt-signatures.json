@@ -1,3 +1,5 @@
 input
      paratexto: string
-     
+output
+     signature: name / initials / nobody
+     responsible: list(author)/ list(responsible-editor) / group
