@@ -1,0 +1,31 @@
+Evaluate verb tense distribution in a news article.
+
+Criterion: Professional news writing typically reports past events, so a
+healthy share of past-tense verbs is expected. Too little or too much past
+tense relative to total verbs suggests a non-news register (op-ed, opinion,
+forecast, or fiction).
+
+You will receive:
+- verb_count: total verbs (VERB POS tag)
+- past_tense_count: verbs with Tense=Past morphological feature
+
+Compute past_tense_ratio = past_tense_count / verb_count. Then return a
+structured evaluation with:
+
+- criteria_name: "Verb Tense"
+- score: a float in [0.0, 1.0]
+- flag: -1 (negative), 0 (neutral), or 1 (positive)
+- explanation: a short human-readable sentence justifying the score
+
+Thresholds:
+- 0.40 <= ratio <= 0.70                              -> flag=1,  score=0.85 (appropriate news style)
+- 0.20 <= ratio < 0.40  OR  0.70 < ratio <= 0.85     -> flag=0,  score=0.60 (acceptable, less balanced)
+- ratio < 0.20  OR  ratio > 0.85                     -> flag=-1, score=0.30 (unusual for news)
+
+Edge case:
+- If verb_count == 0, return flag=-1, score=0.0 with explanation
+  "No verbs found in the text."
+
+Why it matters: Proper tense usage indicates professional news reporting
+style and helps distinguish factual reporting from opinion, speculation,
+or narrative content.

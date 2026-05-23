@@ -1,0 +1,20 @@
+Evaluate the length of a news article by its total word count.
+
+Criterion: Longer articles tend to be more comprehensive and well-researched,
+which correlates with depth of coverage and research quality.
+
+You will receive the total word count of the article. Return a structured
+evaluation with:
+
+- criteria_name: "Word Count"
+- score: a float in [0.0, 1.0]
+- flag: -1 (negative), 0 (neutral), or 1 (positive)
+- explanation: a short human-readable sentence justifying the score
+
+Thresholds:
+- words >= 500  -> flag=1,  score=0.9  (comprehensive coverage)
+- 300 <= words < 500 -> flag=0,  score=0.6  (adequate length)
+- words < 300   -> flag=-1, score=0.3  (too brief)
+
+Why it matters: Depth of coverage correlates with research quality. Very short
+articles may lack supporting evidence, context, or multiple sources.

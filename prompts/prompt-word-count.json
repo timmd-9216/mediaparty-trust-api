@@ -1,0 +1,32 @@
+{
+  "name": "WordCountEvaluator",
+  "inputs": {
+    "total_words": {
+      "type": "integer",
+      "description": "Total number of words in the article (title + body)"
+    }
+  },
+  "outputs": {
+    "criteria_name": {
+      "type": "string",
+      "description": "Always the literal string 'Word Count'"
+    },
+    "flag": {
+      "type": "integer",
+      "description": "-1 (negative / too brief), 0 (neutral / adequate), or 1 (positive / comprehensive)"
+    },
+    "score": {
+      "type": "number",
+      "description": "Score in [0.0, 1.0] reflecting depth of coverage"
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Short human-readable justification mentioning the word count"
+    }
+  },
+  "thresholds": {
+    "comprehensive": {"min_words": 500, "flag": 1, "score": 0.9},
+    "adequate":      {"min_words": 300, "flag": 0, "score": 0.6},
+    "too_brief":     {"min_words": 0,   "flag": -1, "score": 0.3}
+  }
+}

@@ -11,5 +11,10 @@
       "type": "string",
       "description": "Return ONLY the integer number of qualitative/calificative adjectives. No words, explanations, or units—just the integer as text."
     }
+  },
+  "thresholds": {
+    "excellent": {"max_ratio": 0.05, "flag": 1,  "score": 0.9},
+    "moderate":  {"max_ratio": 0.10, "flag": 0,  "score": 0.6},
+    "high":      {"max_ratio": 1.00, "flag": -1, "score": 0.3}
   }
 }
