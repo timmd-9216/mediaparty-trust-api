@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Laiaton - Analizador de Firmas</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f4f6f8;
+            color: #333;
+            line-height: 1.6;
+            padding: 2rem 1rem;
+        }
+        .container {
+            max-width: 720px;
+            margin: 0 auto;
+        }
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        header h1 {
+            font-size: 2rem;
+            color: #1a237e;
+        }
+        header p {
+            color: #555;
+            margin-top: 0.5rem;
+        }
+        .card {
+            background: #fff;
+            border-radius: 12px;
+            padding: 1.5rem 2rem;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+            margin-bottom: 1.5rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        input[type="url"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            border: 2px solid #dde1e7;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+        input[type="url"]:focus {
+            outline: none;
+            border-color: #3949ab;
+        }
+        button {
+            margin-top: 1rem;
+            width: 100%;
+            padding: 0.85rem;
+            background: #3949ab;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        button:hover { background: #303f9f; }
+        .alert {
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+        }
+        .alert-error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #ef9a9a;
+        }
+        .result-grid {
+            display: grid;
+            gap: 1rem;
+        }
+        .result-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            background: #f8f9fa;
+            border-radius: 8px;
+        }
+        .result-item .label { font-weight: 600; color: #555; }
+        .result-item .value { font-weight: 700; color: #1a237e; }
+        .badge {
+            display: inline-block;
+            padding: 0.25rem 0.75rem;
+            border-radius: 999px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        .badge-name { background: #e8f5e9; color: #2e7d32; }
+        .badge-initials { background: #fff3e0; color: #ef6c00; }
+        .badge-nobody { background: #ffebee; color: #c62828; }
+        .explanation {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #e8eaf6;
+            border-left: 4px solid #3949ab;
+            border-radius: 0 8px 8px 0;
+        }
+        .preview {
+            margin-top: 1rem;
+            padding: 1rem;
+            background: #fafafa;
+            border: 1px solid #eee;
+            border-radius: 8px;
+            font-size: 0.9rem;
+            color: #666;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: #888;
+            font-size: 0.85rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🔍 Laiaton</h1>
+            <p>Analizador de firmas periodísticas</p>
+        </header>
+
+        {% if error %}
+        <div class="alert alert-error">{{ error }}</div>
+        {% endif %}
+
+        <div class="card">
+            <form method="post" action="/analyze">
+                <label for="url">URL de la nota periodística</label>
+                <input
+                    type="url"
+                    id="url"
+                    name="url"
+                    placeholder="https://ejemplo.com/noticia"
+                    value="{{ url or '' }}"
+                    required
+                >
+                <button type="submit">Analizar firma</button>
+            </form>
+        </div>
+
+        {% if result %}
+        <div class="card">
+            <h2 style="margin-bottom:1rem;color:#1a237e;">Resultado del análisis</h2>
+            <div class="result-grid">
+                <div class="result-item">
+                    <span class="label">Tipo de firma</span>
+                    <span class="value">
+                        {% if result.signature_type == 'name' %}
+                            <span class="badge badge-name">Firma completa</span>
+                        {% elif result.signature_type == 'initials' %}
+                            <span class="badge badge-initials">Iniciales</span>
+                        {% else %}
+                            <span class="badge badge-nobody">Sin firma</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="result-item">
+                    <span class="label">Firma reconocida</span>
+                    <span class="value">
+                        {% if result.recognized is none %}
+                            No aplica
+                        {% elif result.recognized %}
+                            Sí
+                        {% else %}
+                            No
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="result-item">
+                    <span class="label">Responsable</span>
+                    <span class="value">{{ result.responsible }}</span>
+                </div>
+            </div>
+            <div class="explanation">
+                <strong>Explicación:</strong><br>
+                {{ result.explanation }}
+            </div>
+        </div>
+        {% endif %}
+
+        {% if title %}
+        <div class="card">
+            <h3 style="margin-bottom:0.5rem;color:#555;">Artículo detectado</h3>
+            <p><strong>Título:</strong> {{ title }}</p>
+            {% if text_preview %}
+            <div class="preview">
+                <strong>Vista previa:</strong><br>
+                {{ text_preview | e }}
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <footer>
+            Powered by OpenRouter · MediaParty Trust API
+        </footer>
+    </div>
+</body>
+</html>
