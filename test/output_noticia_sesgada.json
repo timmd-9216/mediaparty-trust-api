@@ -1,0 +1,30 @@
+[
+    {
+        "id": 0,
+        "criteria_name": "Qualitative Adjectives",
+        "explanation": "The qualitative adjective ratio (17.4%) is too high, suggesting opinionated or sensationalist content.",
+        "flag": -1,
+        "score": 0.3
+    },
+    {
+        "id": 1,
+        "criteria_name": "Word Count",
+        "explanation": "The article has only 115 words, which may be too brief.",
+        "flag": -1,
+        "score": 0.3
+    },
+    {
+        "id": 2,
+        "criteria_name": "Sentence Complexity",
+        "explanation": "Average sentence length (19.2 words) is optimal for readability.",
+        "flag": 1,
+        "score": 0.9
+    },
+    {
+        "id": 3,
+        "criteria_name": "Verb Tense",
+        "explanation": "Verb tense analysis requires the NLP service (Stanza). Currently unavailable.",
+        "flag": 0,
+        "score": 0.0
+    }
+]
