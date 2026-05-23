@@ -1,24 +1,23 @@
 {
   "name": "Analisis de Titular vs Contenido",
-  "description": "Evalua la relacion entre el titular y el cuerpo de una noticia",
-  "prompt": "Identificar en la noticia lo siguiente:\n- Cuál es el titular\n- Si lo que afirma el titular contradice el cuerpo de la noticia\n- Si lo que afirma el titular coincide con el cuerpo de la noticia\n- Si lo que afirma el titular aparece aunque sea parcialmente en el cuerpo de la noticia",
+  "description": "Evalua la relacion entre el titular y el cuerpo de una noticia clasificando en una de tres categorias mutuamente excluyentes",
+  "prompt": "Analiza la relacion entre el titular y el cuerpo de la noticia proporcionada. Debes clasificar el titular en EXACTAMENTE UNA de estas tres categorias mutuamente excluyentes:\n\n1. CONTRADICE: El titular afirma algo que el cuerpo de la noticia desmiente, niega o presenta de forma opuesta.\n2. COINCIDE: El titular refleja fielmente la informacion principal del cuerpo de la noticia sin distorsiones.\n3. COINCIDE EN PARTE: El titular contiene elementos que aparecen en el cuerpo, pero exagera, omite contexto crucial, o presenta la informacion de forma sesgada o incompleta.\n\nInstrucciones:\n- Identifica el titular exacto de la noticia\n- Lee atentamente el cuerpo completo\n- Determina cual de las tres categorias aplica (solo una)\n- Justifica tu clasificacion citando elementos especificos del texto\n- Si hay duda entre COINCIDE y COINCIDE EN PARTE, elige COINCIDE EN PARTE cuando detectes cualquier exageracion, omision relevante o sesgo",
   "input": {
     "titular": "string",
     "texto_noticia": "string"
   },
   "output": {
     "titular_identificado": "string",
-    "contradice": {
-      "valor": "boolean",
+    "clasificacion": {
+      "tipo": "string (enum: ['CONTRADICE', 'COINCIDE', 'COINCIDE_EN_PARTE'])",
+      "confianza": "number (0.0 a 1.0)",
       "justificacion": "string"
     },
-    "coincide": {
-      "valor": "boolean",
-      "justificacion": "string"
-    },
-    "aparece_parcialmente": {
-      "valor": "boolean",
-      "justificacion": "string"
+    "analisis_detallado": {
+      "afirmaciones_titular": ["string"],
+      "hechos_verificados": ["string"],
+      "elementos_distorsionados": ["string"],
+      "elementos_omitidos": ["string"]
     }
   }
 }
