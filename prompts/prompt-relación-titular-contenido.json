@@ -1,0 +1,28 @@
+{
+  "name": "TitularContenidoEvaluator",
+  "inputs": {
+    "titular": {
+      "type": "string",
+      "description": "Titular de la noticia"
+    },
+    "texto_noticia": {
+      "type": "string",
+      "description": "Cuerpo completo de la noticia"
+    }
+  },
+  "outputs": {
+    "clasificacion": {
+      "type": "string",
+      "description": "Una de estas tres etiquetas EXACTAS (sin acentos): CONTRADICE | COINCIDE | COINCIDE_EN_PARTE"
+    },
+    "justificacion": {
+      "type": "string",
+      "description": "Justificación breve (una oración) citando elementos del texto"
+    }
+  },
+  "thresholds": {
+    "COINCIDE":          {"flag": 1,  "score": 1.0},
+    "COINCIDE_EN_PARTE": {"flag": 0,  "score": 0.5},
+    "CONTRADICE":        {"flag": -1, "score": 0.0}
+  }
+}

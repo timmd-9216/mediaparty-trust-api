@@ -1,0 +1,38 @@
+{
+  "name": "VerbTenseEvaluator",
+  "inputs": {
+    "verb_count": {
+      "type": "integer",
+      "description": "Total number of verbs (universal POS tag VERB) in the article"
+    },
+    "past_tense_count": {
+      "type": "integer",
+      "description": "Number of verbs with morphological feature Tense=Past"
+    }
+  },
+  "outputs": {
+    "criteria_name": {
+      "type": "string",
+      "description": "Always the literal string 'Verb Tense'"
+    },
+    "flag": {
+      "type": "integer",
+      "description": "-1 (negative), 0 (neutral), or 1 (positive)"
+    },
+    "score": {
+      "type": "number",
+      "description": "Score in [0.0, 1.0] reflecting how news-like the tense distribution is"
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Short human-readable justification mentioning the past-tense ratio"
+    }
+  },
+  "thresholds": {
+    "appropriate":      {"min_ratio": 0.40, "max_ratio": 0.70, "flag": 1,  "score": 0.85},
+    "acceptable_low":   {"min_ratio": 0.20, "max_ratio": 0.40, "flag": 0,  "score": 0.60},
+    "acceptable_high":  {"min_ratio": 0.70, "max_ratio": 0.85, "flag": 0,  "score": 0.60},
+    "unusual_low":      {"min_ratio": 0.00, "max_ratio": 0.20, "flag": -1, "score": 0.30},
+    "unusual_high":     {"min_ratio": 0.85, "max_ratio": 1.00, "flag": -1, "score": 0.30}
+  }
+}

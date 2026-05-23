@@ -1,0 +1,692 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diggity — Prompt-Driven Metrics</title>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --surface: #161b22;
+      --surface2: #21262d;
+      --border: #30363d;
+      --accent: #58a6ff;
+      --accent2: #3fb950;
+      --warn: #d29922;
+      --danger: #f85149;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --radius: 12px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* ─── Slide container ─── */
+    #deck { width: 100vw; height: 100vh; position: relative; }
+
+    .slide {
+      display: none;
+      position: absolute;
+      inset: 0;
+      padding: 48px 64px;
+      flex-direction: column;
+      justify-content: center;
+      animation: fadeIn 0.4s ease;
+    }
+    .slide.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* ─── Navigation ─── */
+    #nav {
+      position: fixed;
+      bottom: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      padding: 8px 20px;
+      z-index: 100;
+    }
+    #nav button {
+      background: none;
+      border: none;
+      color: var(--text);
+      font-size: 18px;
+      cursor: pointer;
+      padding: 4px 8px;
+      border-radius: 6px;
+      transition: background 0.2s;
+    }
+    #nav button:hover { background: var(--border); }
+    #nav span { color: var(--muted); font-size: 13px; min-width: 54px; text-align: center; }
+
+    /* ─── Typography ─── */
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 14px;
+    }
+    h1 { font-size: clamp(2rem, 4vw, 3.4rem); font-weight: 800; line-height: 1.15; margin-bottom: 16px; }
+    h2 { font-size: clamp(1.5rem, 3vw, 2.4rem); font-weight: 700; margin-bottom: 18px; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; }
+    p  { color: var(--muted); line-height: 1.7; font-size: 1rem; max-width: 720px; }
+    .lead { font-size: 1.15rem; color: var(--text); line-height: 1.6; max-width: 760px; }
+
+    /* ─── Accent gradient text ─── */
+    .grad { background: linear-gradient(90deg, #58a6ff 0%, #3fb950 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+    /* ─── Cards ─── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+    .card-grid {
+      display: grid;
+      gap: 16px;
+      margin-top: 24px;
+    }
+    .cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+    /* ─── Badge ─── */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      border-radius: 50px;
+      padding: 4px 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .badge-blue  { background: rgba(88,166,255,.15); color: #58a6ff; border: 1px solid rgba(88,166,255,.3); }
+    .badge-green { background: rgba(63,185,80,.15);  color: #3fb950; border: 1px solid rgba(63,185,80,.3);  }
+    .badge-amber { background: rgba(210,153,34,.15); color: #d29922; border: 1px solid rgba(210,153,34,.3); }
+    .badge-red   { background: rgba(248,81,73,.15);  color: #f85149; border: 1px solid rgba(248,81,73,.3);  }
+
+    /* ─── Code ─── */
+    pre {
+      background: #0d1117;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px 20px;
+      font-size: 13px;
+      line-height: 1.6;
+      overflow-x: auto;
+      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    }
+    .kw  { color: #ff7b72; }
+    .str { color: #a5d6ff; }
+    .cmt { color: #8b949e; }
+    .fn  { color: #d2a8ff; }
+    .num { color: #79c0ff; }
+
+    /* ─── Metric card ─── */
+    .metric-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+    }
+    .metric-card .icon { font-size: 1.6rem; margin-bottom: 8px; }
+    .metric-card h3 { font-size: 0.95rem; }
+    .metric-card p  { font-size: 0.82rem; margin-top: 4px; }
+
+    .threshold-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 0.8rem;
+      margin-top: 6px;
+    }
+    .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+    .dot-green { background: #3fb950; }
+    .dot-amber { background: #d29922; }
+    .dot-red   { background: #f85149; }
+
+    /* ─── Flow diagram ─── */
+    .flow {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      margin-top: 28px;
+      flex-wrap: wrap;
+      row-gap: 16px;
+    }
+    .flow-step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      text-align: center;
+    }
+    .flow-box {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 0.82rem;
+      font-weight: 600;
+      min-width: 110px;
+    }
+    .flow-label { font-size: 0.7rem; color: var(--muted); }
+    .arrow { color: var(--muted); font-size: 1.2rem; padding: 0 4px; margin-top: -18px; }
+
+    /* ─── Two-column layout ─── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    /* ─── Slide-specific tints ─── */
+    #s1 { background: radial-gradient(ellipse at 70% 40%, rgba(88,166,255,.07) 0%, transparent 65%); }
+    #s5 { background: radial-gradient(ellipse at 30% 60%, rgba(63,185,80,.07) 0%, transparent 65%); }
+    #s8 { background: radial-gradient(ellipse at 70% 40%, rgba(88,166,255,.07) 0%, transparent 65%); }
+
+    /* ─── Pill ─── */
+    .pill { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 2px 8px; font-size: 11px; color: var(--muted); font-family: monospace; }
+
+    /* ─── List ─── */
+    ul.check { list-style: none; margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+    ul.check li::before { content: "✓ "; color: var(--accent2); font-weight: 700; }
+    ul.check li { color: var(--muted); font-size: 0.9rem; }
+
+    /* ─── Score bar ─── */
+    .score-bar { height: 6px; border-radius: 3px; margin-top: 8px; }
+    .score-90 { background: linear-gradient(90deg, #3fb950 0%, #3fb950 90%, var(--surface2) 90%); }
+    .score-60 { background: linear-gradient(90deg, #d29922 0%, #d29922 60%, var(--surface2) 60%); }
+    .score-30 { background: linear-gradient(90deg, #f85149 0%, #f85149 30%, var(--surface2) 30%); }
+
+    /* ─── Callout ─── */
+    .callout {
+      border-left: 3px solid var(--accent);
+      background: rgba(88,166,255,.07);
+      border-radius: 0 8px 8px 0;
+      padding: 12px 16px;
+      font-size: 0.9rem;
+      color: var(--text);
+      margin-top: 16px;
+    }
+
+    /* Keyboard hint */
+    #hint { position: fixed; bottom: 28px; right: 32px; color: var(--muted); font-size: 11px; }
+  </style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- ══════════════════════════════════════════════ SLIDE 1 — TÍTULO -->
+  <section class="slide active" id="s1">
+    <div class="tag">Diggity · MediaParty Hackathon 2025</div>
+    <h1>Métricas configuradas<br/><span class="grad">desde archivos de prompt</span></h1>
+    <p class="lead" style="margin-top: 16px;">
+      Una nueva capa de diseño que desacopla las <strong style="color:var(--text)">reglas de evaluación periodística</strong>
+      del código Python — los thresholds, criterios y firmas LLM viven en archivos versionables
+      que cualquier integrante del equipo puede editar sin tocar el backend.
+    </p>
+    <div style="display:flex;gap:10px;margin-top:28px;flex-wrap:wrap;">
+      <span class="badge badge-blue">🤖 LLM · DSPy + OpenRouter</span>
+      <span class="badge badge-green">📊 NLP · Stanford Stanza</span>
+      <span class="badge badge-amber">⚙️ FastAPI REST</span>
+      <span class="badge badge-red">🔌 Chrome Extension</span>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 2 — PROBLEMA -->
+  <section class="slide" id="s2">
+    <div class="tag">Motivación</div>
+    <h2>¿Qué problema resuelve?</h2>
+    <div class="card-grid cols-2" style="margin-top:20px;">
+      <div class="card">
+        <div style="font-size:1.8rem;margin-bottom:10px;">😰</div>
+        <h3>Antes</h3>
+        <ul class="check" style="margin-top:10px;">
+          <li>Thresholds hardcodeados en <span class="pill">metrics.py</span></li>
+          <li>Prompt del LLM en una cadena de texto dentro del código</li>
+          <li>Cambiar un umbral requería PR + revisión de código</li>
+          <li>Difícil auditar por periodistas sin contexto técnico</li>
+        </ul>
+      </div>
+      <div class="card" style="border-color: rgba(63,185,80,.4);">
+        <div style="font-size:1.8rem;margin-bottom:10px;">✨</div>
+        <h3 style="color:var(--accent2);">Ahora</h3>
+        <ul class="check" style="margin-top:10px;">
+          <li>Cada métrica tiene su <span class="pill">.txt</span> + <span class="pill">.json</span> en <span class="pill">prompts/</span></li>
+          <li>El prompt es el artefacto versionado (optimizable con DSPy)</li>
+          <li>Thresholds en JSON → editables sin tocar Python</li>
+          <li>Código lee la config en runtime → zero rebuild</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 3 — ARQUITECTURA -->
+  <section class="slide" id="s3">
+    <div class="tag">Arquitectura</div>
+    <h2>Cómo funciona</h2>
+    <p>El loader <span class="pill">prompt_loader.py</span> une ambos archivos y construye la firma DSPy en runtime.</p>
+    <div class="flow">
+      <div class="flow-step">
+        <div class="flow-box">📄 <code>prompt-X.txt</code></div>
+        <span class="flow-label">Instrucciones LLM</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box">🗂 <code>prompt-X.json</code></div>
+        <span class="flow-label">Inputs / Outputs / Thresholds</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box" style="border-color:rgba(88,166,255,.5);">⚙️ <code>prompt_loader</code></div>
+        <span class="flow-label">load_dspy_signature()<br/>load_thresholds()</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box" style="border-color:rgba(63,185,80,.5);">🐍 <code>metrics.py</code></div>
+        <span class="flow-label">Cálculo en runtime</span>
+      </div>
+      <div class="arrow">→</div>
+      <div class="flow-step">
+        <div class="flow-box" style="border-color:rgba(88,166,255,.5);">🌐 REST API</div>
+        <span class="flow-label">JSON response</span>
+      </div>
+    </div>
+    <div class="callout" style="margin-top:24px;">
+      💡 <strong>Zero rebuild</strong> — modificar un threshold o el texto del prompt toma efecto en la próxima request sin reiniciar el servidor.
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 4 — ESTRUCTURA DE ARCHIVOS -->
+  <section class="slide" id="s4">
+    <div class="tag">Convención de archivos</div>
+    <h2>Estructura <span class="pill">prompts/</span></h2>
+    <div class="two-col" style="margin-top:20px;">
+      <div>
+        <pre><span class="cmt">prompts/
+├── prompt-adjectives.txt          # Instrucciones LLM
+├── prompt-adjectives.json         # Schema I/O + thresholds
+├── prompt-word-count.txt
+├── prompt-word-count.json
+├── prompt-sentence-complexity.txt
+├── prompt-sentence-complexity.json
+├── prompt-verb-tense.txt
+├── prompt-verb-tense.json
+└── prompt-relación-titular-...{txt,json}</span></pre>
+        <div class="callout" style="margin-top:14px;font-size:.82rem;">
+          El <span class="pill">.txt</span> es optimizable por DSPy.<br/>
+          El <span class="pill">.json</span> declara el schema y thresholds.
+        </div>
+      </div>
+      <div>
+        <pre><span class="cmt">// prompt-word-count.json</span>
+{
+  <span class="str">"name"</span>: <span class="str">"WordCountEvaluator"</span>,
+  <span class="str">"inputs"</span>: {
+    <span class="str">"total_words"</span>: {
+      <span class="str">"type"</span>: <span class="str">"integer"</span>,
+      <span class="str">"description"</span>: <span class="str">"Total words"</span>
+    }
+  },
+  <span class="str">"thresholds"</span>: {
+    <span class="str">"comprehensive"</span>: { <span class="str">"min_words"</span>: <span class="num">500</span>, <span class="str">"flag"</span>: <span class="num">1</span>,  <span class="str">"score"</span>: <span class="num">0.9</span> },
+    <span class="str">"adequate"</span>:      { <span class="str">"min_words"</span>: <span class="num">300</span>, <span class="str">"flag"</span>: <span class="num">0</span>,  <span class="str">"score"</span>: <span class="num">0.6</span> },
+    <span class="str">"too_brief"</span>:     { <span class="str">"min_words"</span>: <span class="num">0</span>,   <span class="str">"flag"</span>: <span class="num">-1</span>, <span class="str">"score"</span>: <span class="num">0.3</span> }
+  }
+}</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 5 — MÉTRICAS OVERVIEW -->
+  <section class="slide" id="s5">
+    <div class="tag">Métricas implementadas</div>
+    <h2>5 métricas · 2 modos de evaluación</h2>
+    <div class="card-grid cols-3" style="margin-top:20px;">
+      <div class="metric-card">
+        <div class="icon">🔤</div>
+        <span class="badge badge-blue" style="margin-bottom:8px;">LLM · DSPy</span>
+        <h3>Adjetivos Calificativos</h3>
+        <p>Filtra adjetivos subjetivos via OpenRouter. Mide ratio sobre total de palabras.</p>
+        <div class="threshold-row"><span class="dot dot-green"></span> ≤ 5 % → excelente (0.9)</div>
+        <div class="threshold-row"><span class="dot dot-amber"></span> ≤ 10 % → moderado (0.6)</div>
+        <div class="threshold-row"><span class="dot dot-red"></span> &gt; 10 % → sesgado (0.3)</div>
+      </div>
+      <div class="metric-card">
+        <div class="icon">📝</div>
+        <span class="badge badge-green" style="margin-bottom:8px;">Estadística · Stanza</span>
+        <h3>Conteo de Palabras</h3>
+        <p>Longitud total tokenizada. Mayor extensión correlaciona con cobertura profunda.</p>
+        <div class="threshold-row"><span class="dot dot-green"></span> ≥ 500 → completo (0.9)</div>
+        <div class="threshold-row"><span class="dot dot-amber"></span> ≥ 300 → adecuado (0.6)</div>
+        <div class="threshold-row"><span class="dot dot-red"></span> &lt; 300 → muy breve (0.3)</div>
+      </div>
+      <div class="metric-card">
+        <div class="icon">📐</div>
+        <span class="badge badge-green" style="margin-bottom:8px;">Estadística · Stanza</span>
+        <h3>Complejidad Oracional</h3>
+        <p>Promedio de palabras por oración. Indica legibilidad y calidad de redacción.</p>
+        <div class="threshold-row"><span class="dot dot-green"></span> 15–25 pal. → óptimo (0.9)</div>
+        <div class="threshold-row"><span class="dot dot-amber"></span> 10–15 / 25–35 → aceptable (0.6)</div>
+        <div class="threshold-row"><span class="dot dot-red"></span> &lt;10 / &gt;35 → problema (0.3)</div>
+      </div>
+    </div>
+    <div class="card-grid cols-2" style="margin-top:12px;">
+      <div class="metric-card">
+        <div class="icon">⏱️</div>
+        <span class="badge badge-green" style="margin-bottom:8px;">Estadística · Stanza</span>
+        <h3>Tiempo Verbal</h3>
+        <p>Ratio verbos en pasado / total verbos. Distingue reporting de opinión.</p>
+        <div class="threshold-row"><span class="dot dot-green"></span> 40–70 % → estilo noticioso (0.85)</div>
+        <div class="threshold-row"><span class="dot dot-amber"></span> 20–40 % / 70–85 % → aceptable (0.60)</div>
+        <div class="threshold-row"><span class="dot dot-red"></span> &lt;20 % / &gt;85 % → inusual (0.30)</div>
+      </div>
+      <div class="metric-card">
+        <div class="icon">🔗</div>
+        <span class="badge badge-blue" style="margin-bottom:8px;">LLM · DSPy</span>
+        <h3>Relación Titular–Contenido</h3>
+        <p>LLM clasifica si el titular coincide, contradice o solo coincide en parte con el cuerpo.</p>
+        <div class="threshold-row"><span class="dot dot-green"></span> COINCIDE → (1.0)</div>
+        <div class="threshold-row"><span class="dot dot-amber"></span> COINCIDE_EN_PARTE → (0.5)</div>
+        <div class="threshold-row"><span class="dot dot-red"></span> CONTRADICE → (0.0)</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 6 — DEEP DIVE ADJECTIVES -->
+  <section class="slide" id="s6">
+    <div class="tag">Métrica en profundidad · LLM</div>
+    <h2>Adjetivos Calificativos</h2>
+    <div class="two-col" style="margin-top:20px;">
+      <div>
+        <div class="card">
+          <h3 style="color:var(--accent);margin-bottom:10px;">📄 prompt-adjectives.txt</h3>
+          <p style="font-size:0.82rem;color:var(--text);line-height:1.6;">
+            «Filter and count qualitative/calificative adjectives from a list.<br/><br/>
+            A qualitative adjective expresses an <em>opinion, judgment, or subjective evaluation</em>
+            (e.g. "terrible", "amazing") as opposed to relational adjectives that describe objective
+            properties (e.g. "presidential", "monthly").»
+          </p>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-bottom:8px;">Pipeline</h3>
+          <div class="flow" style="flex-direction:column;align-items:flex-start;gap:6px;margin-top:0;">
+            <span>1. Stanza extrae ADJ via POS</span>
+            <span>2. LLM filtra solo los calificativos</span>
+            <span>3. ratio = <code style="font-size:.8rem;">qualitative / total_words</code></span>
+            <span>4. Threshold desde JSON → flag + score</span>
+          </div>
+          <div class="callout" style="margin-top:12px;font-size:.8rem;">
+            <strong>Failover:</strong> si OpenRouter no responde, se usan todos los adjetivos sin filtrar.
+          </div>
+        </div>
+      </div>
+      <div>
+        <pre><span class="cmt">// Llamada en metrics.py</span>
+<span class="fn">QualitativeAdjectiveFilter</span> = load_dspy_signature(
+  <span class="str">"adjectives"</span>
+)
+
+<span class="kw">with</span> dspy.context(lm=lm):
+    result = dspy.<span class="fn">ChainOfThought</span>(
+        QualitativeAdjectiveFilter
+    )(adjectives=<span class="str">"...lista..."</span>)
+
+<span class="cmt"># Ejemplo input/output</span>
+<span class="cmt"># in:  "hermosa, política, económico, terrible"</span>
+<span class="cmt"># out: count = "2"  (hermosa + terrible)</span>
+
+th = <span class="fn">load_thresholds</span>(<span class="str">"adjectives"</span>)
+<span class="cmt"># th["excellent"]["max_ratio"] → 0.05</span>
+<span class="cmt"># th["moderate"]["max_ratio"]  → 0.10</span></pre>
+        <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+          <span class="badge badge-blue">Input: adjectives (string)</span>
+          <span class="badge badge-green">Output: count (int)</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 7 — DEEP DIVE TITULAR -->
+  <section class="slide" id="s7">
+    <div class="tag">Métrica en profundidad · LLM</div>
+    <h2>Relación Titular–Contenido</h2>
+    <div class="two-col" style="margin-top:20px;">
+      <div>
+        <div class="card">
+          <h3 style="color:var(--accent);margin-bottom:10px;">📄 prompt-relación-titular-contenido.txt</h3>
+          <p style="font-size:0.82rem;color:var(--text);line-height:1.6;">
+            «Clasifica el titular en <strong>EXACTAMENTE UNA</strong> de estas tres categorías mutuamente excluyentes:<br/><br/>
+            <strong>CONTRADICE</strong> — el titular afirma algo que el cuerpo desmiente.<br/>
+            <strong>COINCIDE</strong> — refleja fielmente la información principal.<br/>
+            <strong>COINCIDE EN PARTE</strong> — contiene elementos del cuerpo pero exagera u omite contexto.»
+          </p>
+        </div>
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-bottom:6px;">Scoring</h3>
+          <div class="threshold-row"><span class="dot dot-green"></span> COINCIDE → flag 1, score 1.0</div>
+          <div class="threshold-row"><span class="dot dot-amber"></span> COINCIDE_EN_PARTE → flag 0, score 0.5</div>
+          <div class="threshold-row"><span class="dot dot-red"></span> CONTRADICE → flag -1, score 0.0</div>
+        </div>
+      </div>
+      <div>
+        <pre><span class="cmt">// prompt-relación-titular-contenido.json</span>
+{
+  <span class="str">"name"</span>: <span class="str">"TitularContenidoEvaluator"</span>,
+  <span class="str">"inputs"</span>: {
+    <span class="str">"titular"</span>:      { <span class="str">"type"</span>: <span class="str">"string"</span> },
+    <span class="str">"texto_noticia"</span>: { <span class="str">"type"</span>: <span class="str">"string"</span> }
+  },
+  <span class="str">"outputs"</span>: {
+    <span class="str">"clasificacion"</span>: { <span class="str">"type"</span>: <span class="str">"string"</span> },
+    <span class="str">"justificacion"</span>: { <span class="str">"type"</span>: <span class="str">"string"</span> }
+  },
+  <span class="str">"thresholds"</span>: {
+    <span class="str">"COINCIDE"</span>:         {<span class="str">"flag"</span>: <span class="num">1</span>,  <span class="str">"score"</span>: <span class="num">1.0</span>},
+    <span class="str">"COINCIDE_EN_PARTE"</span>:{<span class="str">"flag"</span>: <span class="num">0</span>,  <span class="str">"score"</span>: <span class="num">0.5</span>},
+    <span class="str">"CONTRADICE"</span>:       {<span class="str">"flag"</span>: <span class="num">-1</span>, <span class="str">"score"</span>: <span class="num">0.0</span>}
+  }
+}</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 8 — CÓDIGO LOADER -->
+  <section class="slide" id="s8">
+    <div class="tag">Implementación</div>
+    <h2><span class="pill">prompt_loader.py</span> — API pública</h2>
+    <div class="two-col" style="margin-top:20px;">
+      <div>
+        <pre><span class="kw">from</span> mediaparty_trust_api.services.prompt_loader <span class="kw">import</span> (
+    load_dspy_signature,
+    load_thresholds,
+    list_prompts,
+    validate_prompts,
+)
+
+<span class="cmt"># Construye dspy.Signature dinámica desde archivos</span>
+Filter = <span class="fn">load_dspy_signature</span>(<span class="str">"adjectives"</span>)
+
+<span class="cmt"># Carga thresholds como dict</span>
+th = <span class="fn">load_thresholds</span>(<span class="str">"word-count"</span>)
+<span class="cmt"># → {"comprehensive": {"min_words": 500, ...}}</span>
+
+<span class="cmt"># Listado de prompts disponibles</span>
+prompts = <span class="fn">list_prompts</span>()
+
+<span class="cmt"># Validación estructural (CI-ready)</span>
+result = <span class="fn">validate_prompts</span>()
+<span class="cmt"># → {"valid": [...], "errors": [...], "total": N}</span></pre>
+      </div>
+      <div>
+        <h3 style="margin-bottom:12px;">Funciones expuestas</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="card">
+            <code style="color:var(--accent);font-size:.85rem;">load_dspy_signature(name)</code>
+            <p style="margin-top:6px;font-size:.8rem;">Construye <code>dspy.Signature</code> subclass dinámica a partir de .txt + .json.</p>
+          </div>
+          <div class="card">
+            <code style="color:var(--accent);font-size:.85rem;">load_thresholds(name)</code>
+            <p style="margin-top:6px;font-size:.8rem;">Retorna el dict de thresholds del JSON sin cargar todo el schema.</p>
+          </div>
+          <div class="card">
+            <code style="color:var(--accent);font-size:.85rem;">list_prompts()</code>
+            <p style="margin-top:6px;font-size:.8rem;">Enumera todos los prompts con flags <code>has_thresholds</code>, <code>has_llm_signature</code>.</p>
+          </div>
+          <div class="card">
+            <code style="color:var(--accent);font-size:.85rem;">validate_prompts()</code>
+            <p style="margin-top:6px;font-size:.8rem;">Valida JSON + .txt + tipos soportados + build DSPy. Ideal en CI.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 9 — RESPONSE FORMAT -->
+  <section class="slide" id="s9">
+    <div class="tag">API Response</div>
+    <h2>Output unificado por métrica</h2>
+    <div class="two-col" style="margin-top:20px;">
+      <div>
+        <p style="margin-bottom:16px;">Cada métrica devuelve el mismo schema <strong style="color:var(--text)">Metric</strong>:</p>
+        <pre>{
+  <span class="str">"id"</span>:            <span class="num">0</span>,
+  <span class="str">"criteria_name"</span>: <span class="str">"Qualitative Adjectives"</span>,
+  <span class="str">"explanation"</span>:   <span class="str">"The ratio (3.2%) is excellent,<br/>                  indicating objective writing."</span>,
+  <span class="str">"flag"</span>:          <span class="num">1</span>,
+  <span class="str">"score"</span>:         <span class="num">0.9</span>
+}</pre>
+        <div class="card" style="margin-top:14px;">
+          <h3 style="margin-bottom:8px;">Campos</h3>
+          <div class="threshold-row"><span class="dot dot-green"></span> <code>flag = 1</code>  → positivo / cumple el criterio</div>
+          <div class="threshold-row"><span class="dot dot-amber"></span> <code>flag = 0</code>  → neutro / aceptable</div>
+          <div class="threshold-row"><span class="dot dot-red"></span> <code>flag = -1</code> → negativo / alerta</div>
+          <div class="threshold-row" style="margin-top:8px;"><span style="width:8px;height:8px;background:var(--accent);border-radius:50%;flex-shrink:0;display:inline-block;"></span> <code>score</code> → [0.0 – 1.0] confianza cuantitativa</div>
+        </div>
+      </div>
+      <div>
+        <p style="margin-bottom:16px;">Endpoint: <span class="pill">POST /api/v1/articles/analyze</span></p>
+        <pre><span class="cmt">// Response completo (array)</span>
+[
+  { <span class="str">"id"</span>: <span class="num">0</span>, <span class="str">"criteria_name"</span>: <span class="str">"Qualitative Adjectives"</span>,
+    <span class="str">"flag"</span>: <span class="num">1</span>,  <span class="str">"score"</span>: <span class="num">0.9</span> },
+  { <span class="str">"id"</span>: <span class="num">1</span>, <span class="str">"criteria_name"</span>: <span class="str">"Word Count"</span>,
+    <span class="str">"flag"</span>: <span class="num">1</span>,  <span class="str">"score"</span>: <span class="num">0.9</span> },
+  { <span class="str">"id"</span>: <span class="num">2</span>, <span class="str">"criteria_name"</span>: <span class="str">"Sentence Complexity"</span>,
+    <span class="str">"flag"</span>: <span class="num">0</span>,  <span class="str">"score"</span>: <span class="num">0.6</span> },
+  { <span class="str">"id"</span>: <span class="num">3</span>, <span class="str">"criteria_name"</span>: <span class="str">"Verb Tense"</span>,
+    <span class="str">"flag"</span>: <span class="num">1</span>,  <span class="str">"score"</span>: <span class="num">0.85</span> },
+  { <span class="str">"id"</span>: <span class="num">4</span>, <span class="str">"criteria_name"</span>: <span class="str">"Title-Content Relation"</span>,
+    <span class="str">"flag"</span>: <span class="num">1</span>,  <span class="str">"score"</span>: <span class="num">1.0</span> }
+]</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 10 — BENEFICIOS -->
+  <section class="slide" id="s10">
+    <div class="tag">Beneficios</div>
+    <h2>¿Por qué importa este diseño?</h2>
+    <div class="card-grid cols-2" style="margin-top:20px;">
+      <div class="card">
+        <div style="font-size:1.4rem;margin-bottom:8px;">📝</div>
+        <h3>Editabilidad sin código</h3>
+        <p>Periodistas y editores pueden ajustar thresholds y texto del prompt editando un JSON. No hace falta saber Python.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:1.4rem;margin-bottom:8px;">🔄</div>
+        <h3>Versionado independiente</h3>
+        <p>Los archivos de prompt tienen su propio historial en git. Un cambio de criterio es un commit con diff legible.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:1.4rem;margin-bottom:8px;">🤖</div>
+        <h3>Optimización con DSPy</h3>
+        <p>El <code>.txt</code> es el artefacto que DSPy puede optimizar automáticamente mediante few-shot o bootstrap.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:1.4rem;margin-bottom:8px;">🧪</div>
+        <h3>CI-ready</h3>
+        <p><code>validate_prompts()</code> verifica la integridad estructural de todos los archivos en cada push.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:1.4rem;margin-bottom:8px;">🔌</div>
+        <h3>Extensibilidad</h3>
+        <p>Agregar una nueva métrica es crear un par <code>.txt</code> + <code>.json</code> y llamar al loader. Sin modificar código existente.</p>
+      </div>
+      <div class="card">
+        <div style="font-size:1.4rem;margin-bottom:8px;">🛡️</div>
+        <h3>Failover robusto</h3>
+        <p>Si el LLM no responde, las métricas estadísticas siguen funcionando. Degradación grácil por diseño.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════ SLIDE 11 — CIERRE -->
+  <section class="slide" id="s11">
+    <div class="tag">Diggity · 🏆 1er Premio MediaParty Hackathon 2025</div>
+    <h1>Métricas configurables.<br/><span class="grad">Periodismo auditable.</span></h1>
+    <p class="lead" style="margin-top:20px;">
+      Con esta arquitectura, <strong style="color:var(--text)">cualquier integrante del equipo</strong> —periodista, desarrollador o investigador—
+      puede proponer, versionar y afinar los criterios de calidad periodística
+      sin fricciones técnicas.
+    </p>
+    <div style="display:flex;gap:12px;margin-top:32px;flex-wrap:wrap;">
+      <span class="badge badge-green">5 métricas · 2 modos</span>
+      <span class="badge badge-blue">Prompts versionados en git</span>
+      <span class="badge badge-amber">Zero rebuild al cambiar thresholds</span>
+      <span class="badge badge-red">Failover · LLM opcional</span>
+    </div>
+    <div class="callout" style="margin-top:28px;max-width:600px;">
+      🔗 <strong>Repositorio:</strong> <code>fiuba-timmd/mediaparty-trust-api</code><br/>
+      📖 <strong>Docs:</strong> <code>prompts/README.md</code> · <code>src/.../prompt_loader.py</code>
+    </div>
+  </section>
+
+</div><!-- /#deck -->
+
+<!-- Navigation -->
+<div id="nav">
+  <button onclick="go(-1)" title="Anterior">←</button>
+  <span id="counter">1 / 11</span>
+  <button onclick="go(1)" title="Siguiente">→</button>
+</div>
+<div id="hint">← → o teclas de flecha</div>
+
+<script>
+  const slides = document.querySelectorAll('.slide');
+  let cur = 0;
+
+  function show(n) {
+    slides[cur].classList.remove('active');
+    cur = (n + slides.length) % slides.length;
+    slides[cur].classList.add('active');
+    document.getElementById('counter').textContent = `${cur + 1} / ${slides.length}`;
+  }
+
+  function go(d) { show(cur + d); }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ') go(1);
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp') go(-1);
+  });
+</script>
+</body>
+</html>

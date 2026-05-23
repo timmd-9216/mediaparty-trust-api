@@ -24,14 +24,22 @@ class StanzaService:
 
         This method downloads the Spanish model if not present and loads it.
         Should be called during application startup.
+        If initialization fails, the service remains unavailable but the app
+        continues running with degraded (text-based) metrics.
         """
-        # Download Spanish model if not already downloaded
-        stanza.download("es", verbose=True)
+        try:
+            # Download Spanish model if not already downloaded
+            stanza.download("es", verbose=True)
 
-        # Initialize the Spanish pipeline with common processors
-        self._nlp = stanza.Pipeline(
-            lang="es", processors="tokenize,mwt,pos,lemma,depparse", verbose=False
-        )
+            # Initialize the Spanish pipeline with common processors
+            self._nlp = stanza.Pipeline(
+                lang="es", processors="tokenize,mwt,pos,lemma,depparse", verbose=False
+            )
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).warning(
+                f"Stanza initialization failed (NLP metrics will be unavailable): {e}"
+            )
 
     def create_doc(self, text: str) -> Document:
         """

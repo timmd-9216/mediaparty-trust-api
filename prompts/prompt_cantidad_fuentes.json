@@ -1,0 +1,48 @@
+{
+  "_schema_version": "1.0.0",
+  "_description": "Esquema de output para analisis de fuentes citadas en noticias periodisticas. Este template define la estructura esperada al procesar cualquier articulo de prensa.",
+  "_last_updated": "2026-05-23",
+  "_prompt_original": "Identificar la cantidad en numero de fuentes citadas, es decir si aparecen nombres propios o nombres de organismos oficiales u organizaciones de la sociedad civil como sujeto de verbos de decir (como por ejemplo 'dijo', 'sostuvo', 'declaro', 'amenazo', 'explico', entre muchos otros), seguidos de afirmaciones que pueden ser citas textuales (frases entrecomilladas) o no.",
+  "metadata": {
+    "url": "string (URL de la noticia analizada)",
+    "titulo": "string (titulo de la noticia)",
+    "fecha_analisis": "string (ISO 8601)",
+    "medio_publicacion": "string (nombre del medio)",
+    "seccion": "string (seccion/tematica de la noticia)"
+  },
+  "resultados_agregados": {
+    "cantidad_total_fuentes_citadas": "integer (>= 0)",
+    "cantidad_fuentes_personas": "integer (>= 0)",
+    "cantidad_fuentes_organismos": "integer (>= 0)",
+    "cantidad_fuentes_con_citas_textuales": "integer (>= 0)",
+    "cantidad_fuentes_sin_citas_textuales": "integer (>= 0)"
+  },
+  "fuentes_citadas": [
+    {
+      "id_fuente": "integer (indice secuencial, 1-based)",
+      "nombre_fuente": "string (nombre propio o denominacion del organismo)",
+      "tipo": "string (enum: 'persona' | 'organismo_oficial' | 'organizacion_civil' | 'medio_comunicacion' | 'empresa' | 'otro')",
+      "cargo_rol": "string (opcional, cargo o rol dentro del organismo)",
+      "organismo_pertenencia": "string (opcional, organismo al que pertenece la persona)",
+      "verbo_de_decir": "string (verbo que introduce la cita o afirmacion)",
+      "cita_textual": "boolean (true si la afirmacion esta entrecomillada, false si es reportada indirectamente)",
+      "texto_citado": "string|null (el texto exacto entrecomillado, o null si no es cita textual)",
+      "contexto": "string (breve descripcion del contexto en que se produce la declaracion)",
+      "ubicacion_en_nota": "string (parrafo aproximado o seccion donde aparece)"
+    }
+  ],
+  "observaciones": {
+    "notas_metodologicas": [
+      "string (notas sobre criterios aplicados, ambiguedades, etc.)"
+    ],
+    "fuentes_ambiguas": [
+      {
+        "descripcion": "string (texto ambiguo)",
+        "razon_ambiguedad": "string (por que no se pudo clasificar como fuente citada)"
+      }
+    ],
+    "fuentes_no_citadas_mencionadas": [
+      "string (nombres propios u organismos que aparecen en la nota pero NO como sujetos de verbos de decir)"
+    ]
+  }
+}
