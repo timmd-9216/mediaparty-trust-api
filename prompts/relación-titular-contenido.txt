@@ -1,1 +1,5 @@
-
+Identificar en la noticia lo siguiente:
+Cuál es el titular
+si lo que afirma el titular contradice el texto de la noticia
+si lo que afirma el titular coincide con el texto de la noticia
+si lo que afirma el titular aparece aunque sea parcialmente en el texto de la noticia
