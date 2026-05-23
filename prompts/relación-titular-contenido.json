@@ -1,7 +1,7 @@
 {
-  "name": "Analisis de Titular vs Noticia",
-  "description": "Evalua la relacion entre el titular y el contenido de una noticia",
-  "prompt": "Identificar en la noticia lo siguiente:\n- Cuál es el titular\n- Si lo que afirma el titular contradice el texto de la noticia\n- Si lo que afirma el titular coincide con el texto de la noticia\n- Si lo que afirma el titular aparece aunque sea parcialmente en el texto de la noticia",
+  "name": "Analisis de Titular vs Contenido",
+  "description": "Evalua la relacion entre el titular y el cuerpo de una noticia",
+  "prompt": "Identificar en la noticia lo siguiente:\n- Cuál es el titular\n- Si lo que afirma el titular contradice el cuerpo de la noticia\n- Si lo que afirma el titular coincide con el cuerpo de la noticia\n- Si lo que afirma el titular aparece aunque sea parcialmente en el cuerpo de la noticia",
   "input": {
     "titular": "string",
     "texto_noticia": "string"
