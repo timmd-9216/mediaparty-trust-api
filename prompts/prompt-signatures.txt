@@ -1,5 +1,5 @@
 Identificar en la noticia lo siguiente
 si tiene firma 
-si la firma es reconocida es decir si esa firma aparece en 25 notas firmadas o más en medios
+si la firma es reconocida es decir si esa firma aparece en 25 notas o más en medios
 si la nota está inicialada es decir si aparecen las iniciales de quien la redacta
 si no tiene firma ni está inicialada
