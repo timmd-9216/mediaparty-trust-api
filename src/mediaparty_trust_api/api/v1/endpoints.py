@@ -1,8 +1,9 @@
 """Article analysis endpoints."""
 
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, HTTPException, status
+from fastapi import APIRouter, HTTPException, status, Query
+from pydantic import BaseModel, Field
 
 from mediaparty_trust_api.models import ArticleInput, Metric
 from mediaparty_trust_api.services.metrics import (
@@ -13,8 +14,93 @@ from mediaparty_trust_api.services.metrics import (
     get_word_count,
 )
 from mediaparty_trust_api.services.stanza_service import stanza_service
+from mediaparty_trust_api.services.scraper import scrape_article, ConfigurationError
 
 router = APIRouter()
+
+
+class ScrapeResponse(BaseModel):
+    """Response model for article scraping."""
+    title: str = Field(..., description="Article title/headline")
+    body: str = Field(..., description="Main article content")
+    author: Optional[str] = Field(None, description="Article author if found")
+    editor: Optional[str] = Field(None, description="Editor responsible from footer if found")
+    media_group: Optional[str] = Field(None, description="Media group/publisher from footer if found")
+    url: str = Field(..., description="Source URL")
+
+
+@router.get(
+    "/scrape",
+    status_code=status.HTTP_200_OK,
+    response_model=ScrapeResponse,
+    summary="Scrape article from URL",
+    description="Fetches and extracts article content (title, body, author, editor, media group) from a given URL using LLM extraction.",
+    response_description="Extracted article data",
+    responses={
+        200: {
+            "description": "Successful extraction",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "title": "Example News Title",
+                        "body": "Article content here...",
+                        "author": "John Doe",
+                        "editor": "Jane Smith",
+                        "media_group": "MediaCorp Inc.",
+                        "url": "https://example.com/news/article"
+                    }
+                }
+            },
+        },
+        400: {
+            "description": "Invalid URL",
+            "content": {
+                "application/json": {"example": {"detail": "Invalid URL provided"}}
+            },
+        },
+        500: {
+            "description": "Extraction failed",
+            "content": {
+                "application/json": {"example": {"detail": "Failed to extract article content"}}
+            },
+        },
+    },
+    tags=["Scraping"],
+)
+async def scrape_article_endpoint(url: str = Query(..., description="URL of the news article to scrape")) -> ScrapeResponse:
+    """
+    Scrape a news article from the provided URL.
+
+    Uses LLM-based extraction to identify:
+    - Article title and body content
+    - Author name (if present)
+    - Editor responsible (from footer/paratext)
+    - Media group/publisher (from footer/paratext)
+
+    Args:
+        url: The URL of the news article
+
+    Returns:
+        ScrapeResponse with extracted article data
+    """
+    try:
+        result = scrape_article(url)
+        return ScrapeResponse(**result)
+    except ValueError as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(e),
+        )
+    except ConfigurationError as e:
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail=f"Scraping service not configured: {str(e)}"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to extract article: {str(e)}"
+        )
 
 
 @router.post(

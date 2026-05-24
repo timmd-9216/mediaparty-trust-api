@@ -11,7 +11,7 @@ from mediaparty_trust_api.core.config import config  # Load .env variables
 from mediaparty_trust_api.services.prompt_loader import list_prompts, validate_prompts
 from mediaparty_trust_api.services.stanza_service import stanza_service
 
-# from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -107,14 +107,14 @@ app = FastAPI(
     },
 )
 
-# # Configure CORS
-# app.add_middleware(
-#     CORSMiddleware,
-#     allow_origins=["*"],  # Configure appropriately for production
-#     allow_credentials=True,
-#     allow_methods=["*"],
-#     allow_headers=["*"],
-# )
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # Configure appropriately for production
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.get("/")
