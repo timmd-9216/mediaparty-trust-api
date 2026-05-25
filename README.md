@@ -15,29 +15,51 @@ Powered by [Trust: NLP news and text analyzer](https://github.com/timmd-9216/tru
 MediaParty Trust API is a complete journalism quality assessment platform consisting of:
 
 1. **REST API**: Backend service that analyzes articles using NLP and LLM techniques
-2. **Chrome Extension**: Browser plugin that automatically scrapes, analyzes, and annotates articles in real-time as you browse news websites
+2. **Chrome Extension**: Browser plugin that automatically scrapes, analyzes, and annotates articles in real-time
+3. **Prompt Tester App**: Web interface for developing and testing prompts
 
-The system evaluates articles across multiple dimensions:
+The system evaluates articles across **6 dimensions**:
 - **Linguistic Quality**: Sentence complexity, word count, writing style
 - **Objectivity Markers**: LLM-filtered qualitative adjectives that reveal bias
 - **Journalistic Standards**: Verb tense analysis for proper news reporting
+- **Title-Content Relation**: Whether the headline accurately reflects the content
+- **Signature Transparency**: Presence of author, editor, and media group information
+- **Web Scraping**: Automatic extraction of article metadata from URLs
 
 ### 🌐 Chrome Extension
 
 The included Chrome extension transforms how you consume news:
-- **Auto-Detection**: Automatically identifies when you're reading a news article on supported sites (e.g., Infobae)
+- **Auto-Detection**: Automatically identifies when you're reading a news article on supported sites (e.g., Infobae, Clarín, Perfil)
 - **One-Click Analysis**: Click the extension icon to instantly analyze the current article
 - **In-Page Annotations**: Displays quality indicators and metric scores directly on the article page
 - **Visual Feedback**: Color-coded badges (🟢 good, 🟡 moderate, 🔴 poor) for quick assessment
 - **No Manual Copy-Paste**: Seamlessly integrates with your reading workflow
 
+### 🧪 Prompt Tester App
+
+A Next.js-based web interface for developers to iterate on prompts:
+- **URL Scraping**: Enter any news URL to automatically extract article content
+- **Manual Input**: Paste article text directly for analysis
+- **Real-time Metrics**: See all 6 metrics with detailed explanations
+- **Auto-Analysis**: Automatically runs analysis after successful scrape
+- **Perfect for Development**: Test prompt changes without touching the Chrome extension
+
+**Run the Prompt Tester:**
+```bash
+cd prompt-tester-app
+npm install
+npm run dev
+```
+Then open http://localhost:3000
+
 ### 🔬 How It Works
 
-1. **Article Ingestion**: Submit any news article via REST API or Chrome extension
-2. **NLP Processing**: Stanza performs linguistic analysis (POS tagging, dependency parsing)
-3. **LLM Enhancement**: OpenRouter + DSPy filters subjective language patterns
-4. **Metric Calculation**: Four core metrics evaluate article quality
-5. **Visual Feedback**: Chrome extension displays in-page quality indicators
+1. **Article Ingestion**: Submit via URL scraping, REST API, Chrome extension, or Prompt Tester
+2. **Web Scraping**: BeautifulSoup extracts article metadata (title, body, author, editor, media group)
+3. **NLP Processing**: Stanza performs linguistic analysis (POS tagging, dependency parsing, verb tense detection)
+4. **LLM Enhancement**: OpenRouter + DSPy filters subjective language patterns
+5. **Metric Calculation**: **6 core metrics** evaluate article quality
+6. **Visual Feedback**: Chrome extension or Prompt Tester displays quality indicators
 
 ### 🎨 Use Cases
 
@@ -50,24 +72,28 @@ The included Chrome extension transforms how you consume news:
 
 ## ✨ Features
 
-- **LLM-Powered Adjective Analysis**: Uses OpenRouter + DSPy to distinguish qualitative (opinionated) from descriptive (objective) adjectives
-- **Multi-Metric Evaluation**: 4 complementary metrics for comprehensive article assessment
-- **NLP Foundation**: Stanford Stanza for robust Spanish language processing
-- **REST API**: FastAPI-based endpoint for easy integration
-- **Chrome Extension**: Real-time article annotation on news websites
-- **Failover Architecture**: Graceful degradation when LLM services are unavailable
-- **Comprehensive Logging**: Track API calls and metric calculations
+- **6 Comprehensive Metrics**: Adjectives, Word Count, Sentence Complexity, Verb Tense, Title-Content Relation, and Signature Transparency
+- **LLM-Powered Analysis**: Uses OpenRouter + DSPy for qualitative adjective filtering and content evaluation
+- **Web Scraping**: Automatic extraction of article metadata from URLs (title, body, author, editor, media group)
+- **NLP Foundation**: Stanford Stanza for robust Spanish language processing (POS tagging, dependency parsing, verb tense analysis)
+- **Multiple Interfaces**: REST API, Chrome Extension, and Prompt Tester web app
+- **Failover Architecture**: Graceful degradation when LLM or NLP services are unavailable
+- **Comprehensive Logging**: Track API calls, scraper operations, and metric calculations
 
 ---
 
 ## 📋 Requirements
 
 - Python 3.12+
-- OpenRouter API Key (optional, for LLM-powered adjective filtering)
+- Node.js 18+ (for Prompt Tester App)
+- OpenRouter API Key (optional, for LLM-powered metrics)
+- `transformers` and `torch` (for Stanza NLP - installed automatically)
 
 ---
 
 ## 🚀 Installation
+
+### API Backend
 
 ```bash
 # Create and activate a virtual environment
@@ -76,9 +102,19 @@ source .venv/bin/activate
 
 # Install dependencies
 pip install -e .
+
+# Additional dependencies for NLP
+pip install transformers torch beautifulsoup4
 ```
 
 **Note**: If using `uv`, see [SETUP.md](SETUP.md) for known issues on macOS ARM64.
+
+### Prompt Tester App
+
+```bash
+cd prompt-tester-app
+npm install
+```
 
 ---
 
@@ -111,7 +147,7 @@ SITE_NAME=MediaParty Trust API
 3. Create a new API key
 4. Copy the key to your `.env` file
 
-**Note**: Without `OPENROUTER_API_KEY`, the adjective metric will work without LLM filtering (using all adjectives instead of only qualitative ones).
+**Note**: Without `OPENROUTER_API_KEY`, metrics will work with fallback heuristics (no LLM filtering).
 
 ---
 
@@ -128,6 +164,17 @@ source .venv/bin/activate && uvicorn mediaparty_trust_api.main:app --reload
 ```
 
 The API will be available at `http://localhost:8000`
+
+### Starting the Prompt Tester
+
+```bash
+cd prompt-tester-app
+npm run dev
+```
+
+The Prompt Tester will be available at `http://localhost:3000`
+
+**Note**: Ensure the API is running on port 8000 before using the Prompt Tester.
 
 ### API Documentation
 
@@ -156,10 +203,22 @@ mediaparty-trust-api/
 │   ├── main.py                  # FastAPI entry point
 │   ├── models.py                # Pydantic models
 │   ├── api/v1/
-│   │   └── endpoints.py         # API endpoints
+│   │   └── endpoints.py         # API endpoints (scrape + analyze)
 │   └── services/
-│       ├── metrics.py           # Analysis metrics
-│       └── stanza_service.py    # NLP processing
+│       ├── metrics.py           # 6 analysis metrics
+│       ├── scraper.py           # Web scraping service
+│       ├── stanza_service.py    # NLP processing
+│       └── prompt_loader.py     # Prompt management
+├── prompts/                     # DSPy prompt definitions
+│   ├── prompt-adjectives.json
+│   ├── prompt-signatures.json
+│   ├── prompt-verb-tense.json
+│   └── ...
+├── prompt-tester-app/           # Next.js web interface
+│   ├── app/
+│   │   ├── components/          # UI components
+│   │   └── page.tsx             # Main interface
+│   └── README.md
 ├── chrome-extension/
 │   └── extension/               # Browser extension
 ├── test/
@@ -176,7 +235,26 @@ mediaparty-trust-api/
 
 ## 🔌 API Endpoints
 
-### POST /api/v1/articles/analyze
+### GET /api/v1/scrape
+
+Scrapes a news article from a URL and extracts metadata.
+
+**Query Parameters:**
+- `url` (required): The news article URL to scrape
+
+**Response:**
+```json
+{
+    "title": "Article Headline",
+    "body": "Full article content...",
+    "author": "Author Name",
+    "editor": "Editor Name",
+    "media_group": "Media Group/Publisher",
+    "url": "https://example.com/article"
+}
+```
+
+### POST /api/v1/analyze
 
 Analyzes a journalistic article and returns trust metrics.
 
@@ -188,7 +266,9 @@ Analyzes a journalistic article and returns trust metrics.
     "author": "Author name",
     "link": "https://example.com/article",
     "date": "2024-03-15",
-    "media_type": "article"
+    "media_type": "article",
+    "editor": "Editor name (optional)",
+    "media_group": "Media group (optional)"
 }
 ```
 
@@ -208,6 +288,13 @@ Analyzes a journalistic article and returns trust metrics.
         "explanation": "The article has 450 words, indicating adequate coverage.",
         "flag": 0,
         "score": 0.6
+    },
+    {
+        "id": 5,
+        "criteria_name": "Signature Transparency",
+        "explanation": "Full name author (John Doe), no editor, has media group (Example Media)",
+        "flag": 0,
+        "score": 0.6
     }
 ]
 ```
@@ -216,26 +303,38 @@ Analyzes a journalistic article and returns trust metrics.
 
 ## 📊 Implemented Metrics
 
-### 1. Qualitative Adjectives (LLM-Enhanced)
-- Filters adjectives using OpenRouter + DSPy
-- Distinguishes qualitative (opinion) from descriptive (objective) adjectives
-- Thresholds: ≤5% excellent, ≤10% moderate, >10% high
+### 1. Qualitative Adjectives (LLM-Enhanced + NLP)
+- Uses Stanza POS tagging to identify adjectives
+- Filters qualitative (opinion) vs descriptive (objective) using OpenRouter + DSPy
+- **Thresholds**: ≤5% excellent, ≤10% moderate, >10% high
 - **Why it matters**: Excessive qualitative adjectives signal bias or sensationalism
 
-### 2. Word Count
-- Evaluates article length
-- Longer articles tend to be more comprehensive
+### 2. Word Count (NLP)
+- Uses Stanza tokenization for accurate word counting
+- Accounts for Spanish language specifics (contractions, multi-word tokens)
 - **Why it matters**: Depth of coverage correlates with research quality
 
-### 3. Sentence Complexity
-- Analyzes average sentence length
+### 3. Sentence Complexity (NLP)
+- Analyzes average sentence length using dependency parsing
 - Optimal range: 15-25 words per sentence
 - **Why it matters**: Proper complexity ensures readability without oversimplification
 
-### 4. Verb Tense Analysis
-- Evaluates verb tense distribution
+### 4. Verb Tense Analysis (NLP)
+- Uses Stanza to detect verb tense features (`Tense=Past/Pres/Fut`)
 - News articles: 40-70% past tense verbs expected
 - **Why it matters**: Proper tense usage indicates professional news reporting style
+
+### 5. Title-Content Relation (LLM)
+- Evaluates whether headline accurately reflects article content
+- Classifies as: COINCIDE, CONTRADICE, or EXAGERA
+- **Why it matters**: Clickbait and misleading headlines damage credibility
+
+### 6. Signature Transparency (LLM + Scraping)
+- Evaluates presence of accountability information
+- **Signature Type**: FULL_NAME, INITIALS, or NONE
+- **Editor**: Presence of editor/director responsible
+- **Media Group**: Presence of publisher information
+- **Why it matters**: Transparency in authorship and ownership is fundamental to journalistic credibility
 
 ---
 
@@ -370,6 +469,24 @@ The API will work without LLM-based adjective filtering. To enable full function
 ### Error: Stanza models not found
 
 Stanza downloads models on first run. Ensure you have an internet connection.
+
+### Error: `transformers` not defined
+
+Install the required dependencies:
+```bash
+pip install transformers torch
+```
+
+Then restart the API.
+
+### Error: Scraper returns null fields
+
+Some websites have anti-bot protection. The scraper uses:
+- Modern browser headers
+- Session cookies
+- Encoding detection
+
+If extraction fails, try the manual input option in the Prompt Tester.
 
 ---
 

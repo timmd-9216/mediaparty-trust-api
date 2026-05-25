@@ -56,11 +56,25 @@ export default function Home() {
     }
   };
 
+  // Helper to analyze with scraped data
+  const analyzeWithScrapedData = async (scrapedData: any) => {
+    await handleAnalyze(
+      scrapedData.title,
+      scrapedData.body,
+      scrapedData.author || "",
+      scrapedData.url,
+      scrapedData.editor,
+      scrapedData.media_group
+    );
+  };
+
   const handleAnalyze = async (
     title: string,
     body: string,
     author: string,
-    url: string
+    url: string,
+    editor?: string | null,
+    mediaGroup?: string | null
   ) => {
     setLoading(true);
     setError(null);
@@ -78,6 +92,8 @@ export default function Home() {
           link: url || "https://example.com",
           date: new Date().toISOString().split("T")[0],
           media_type: "news",
+          editor: editor || null,
+          media_group: mediaGroup || null,
         }),
       });
 
@@ -116,6 +132,7 @@ export default function Home() {
         <ArticleAnalyzer
           onScrape={handleScrape}
           onAnalyze={handleAnalyze}
+          onAnalyzeWithData={analyzeWithScrapedData}
           onReset={handleReset}
           loading={loading}
           activeTab={activeTab}

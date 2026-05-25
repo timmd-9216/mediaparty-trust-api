@@ -8,13 +8,26 @@ interface ArticleAnalyzerProps {
     title: string;
     body: string;
     author: string | null;
+    editor?: string | null;
+    media_group?: string | null;
+    url: string;
   } | null>;
   onAnalyze: (
     title: string,
     body: string,
     author: string,
-    url: string
+    url: string,
+    editor?: string | null,
+    mediaGroup?: string | null
   ) => Promise<void>;
+  onAnalyzeWithData?: (data: {
+    title: string;
+    body: string;
+    author: string | null;
+    editor: string | null;
+    media_group: string | null;
+    url: string;
+  }) => Promise<void>;
   onReset: () => void;
   loading: boolean;
   activeTab: "url" | "text";
@@ -24,6 +37,7 @@ interface ArticleAnalyzerProps {
 export function ArticleAnalyzer({
   onScrape,
   onAnalyze,
+  onAnalyzeWithData,
   onReset,
   loading,
   activeTab,
@@ -43,15 +57,24 @@ export function ArticleAnalyzer({
       setTitle(result.title);
       setBody(result.body);
       setAuthor(result.author || "");
-      // Auto-analizar después de scrape exitoso
-      await onAnalyze(result.title, result.body, result.author || "", url);
+      // Auto-analizar después de scrape exitoso con datos completos
+      const dataWithDefaults = {
+        ...result,
+        editor: result.editor ?? null,
+        media_group: result.media_group ?? null,
+      };
+      if (onAnalyzeWithData) {
+        await onAnalyzeWithData(dataWithDefaults);
+      } else {
+        await onAnalyze(result.title, result.body, result.author || "", result.url, result.editor, result.media_group);
+      }
     }
     setScrapeLoading(false);
   };
 
   const handleAnalyze = () => {
     if (!title.trim() || !body.trim()) return;
-    onAnalyze(title, body, author, url);
+    onAnalyze(title, body, author, url, null, null);
   };
 
   const handleReset = () => {

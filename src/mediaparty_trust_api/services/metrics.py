@@ -507,3 +507,158 @@ def get_verb_tense_analysis(text: str, metric_id: int = 4, doc: Optional[object]
         flag=flag,
         score=score,
     )
+
+
+def get_signature_analysis(
+    author: Optional[str],
+    editor: Optional[str],
+    media_group: Optional[str],
+    metric_id: int = 5,
+) -> Metric:
+    """
+    Evaluate article signature transparency and accountability.
+
+    Analyzes the presence and quality of author signature, editor responsible,
+    and media group information extracted from the article.
+
+    Args:
+        author: Author name (may be None, full name, or initials)
+        editor: Editor/director name from footer (may be None)
+        media_group: Media group/publisher from footer (may be None)
+        metric_id: Unique identifier for this metric
+
+    Returns:
+        Metric object with signature analysis results
+    """
+    openrouter_api_key = os.getenv("OPENROUTER_API_KEY")
+
+    # Debug logging
+    logger.info(f"Signature analysis - author: {author!r}, editor: {editor!r}, media_group: {media_group!r}")
+
+    if not openrouter_api_key:
+        # Fallback: classify without LLM using simple heuristics
+        author_str = (author or "").strip()
+        editor_str = (editor or "").strip()
+        media_str = (media_group or "").strip()
+
+        # Determine signature type heuristically
+        if not author_str:
+            signature_type = "NONE"
+        elif len(author_str) <= 4 and author_str.isupper():
+            signature_type = "INITIALS"
+        elif len(author_str.split()) >= 2:
+            signature_type = "FULL_NAME"
+        else:
+            signature_type = "INITIALS"  # Single word treated as initials
+
+        has_editor = bool(editor_str and len(editor_str) > 2)
+        has_media = bool(media_str and len(media_str) > 2)
+
+        logger.info(f"Signature check - has_editor: {has_editor}, has_media: {has_media}, signature_type: {signature_type}")
+
+        # Build detailed explanation
+        parts = [f"Full name author ({author_str})"]
+        if has_editor:
+            parts.append("has editor")
+        if has_media:
+            parts.append(f"has media group ({media_str})")
+
+        # Calculate score
+        if signature_type == "FULL_NAME" and has_editor and has_media:
+            flag, score = 1, 0.9
+            explanation = "; ".join(parts)
+        elif signature_type == "FULL_NAME" and (has_editor or has_media):
+            flag, score = 0, 0.6
+            missing = []
+            if not has_editor:
+                missing.append("no editor")
+            if not has_media:
+                missing.append("no media group")
+            explanation = f"Full name author ({author_str}), {' + '.join(missing)}"
+        elif signature_type == "FULL_NAME":
+            flag, score = 0, 0.6
+            explanation = f"Full name author ({author_str}), no editor, no media group"
+        elif signature_type == "INITIALS" and has_editor and has_media:
+            flag, score = 0, 0.6
+            explanation = f"Initials only ({author_str}) but has editor and media group"
+        else:
+            flag, score = -1, 0.3
+            explanation = "Poor transparency: no identifiable author or accountability"
+
+        return Metric(
+            id=metric_id,
+            criteria_name="Signature Transparency",
+            explanation=explanation,
+            flag=flag,
+            score=score,
+        )
+
+    try:
+        # Use LLM for more accurate classification
+        lm = OpenRouterLM()
+
+        # Load DSPy signature from prompt files
+        SignatureEvaluator = load_dspy_signature("signatures")
+
+        with dspy.context(lm=lm):
+            evaluator = dspy.ChainOfThought(SignatureEvaluator)
+            result = evaluator(
+                author=author or "",
+                editor=editor or "",
+                media_group=media_group or "",
+            )
+
+        # Determine score based on LLM output
+        signature_type = result.signature_type if hasattr(result, 'signature_type') else "NONE"
+        has_editor = result.has_editor if hasattr(result, 'has_editor') else False
+        has_media = result.has_media_group if hasattr(result, 'has_media_group') else False
+        explanation = result.explanation if hasattr(result, 'explanation') else ""
+
+        # Apply scoring logic
+        if signature_type == "FULL_NAME" and has_editor and has_media:
+            flag, score = 1, 0.9
+        elif signature_type == "FULL_NAME" and (has_editor or has_media):
+            flag, score = 0, 0.6
+        elif signature_type == "FULL_NAME":
+            flag, score = 0, 0.6
+        elif signature_type == "INITIALS" and has_editor and has_media:
+            flag, score = 0, 0.6
+        else:
+            flag, score = -1, 0.3
+
+        # Build explanation if LLM didn't provide a good one
+        if not explanation or len(explanation) < 10:
+            parts = []
+            if signature_type == "FULL_NAME":
+                parts.append(f"Full name author ({author})")
+            elif signature_type == "INITIALS":
+                parts.append(f"Initials only ({author})")
+            else:
+                parts.append("No author identified")
+
+            if has_editor:
+                parts.append("has editor")
+            if has_media:
+                parts.append("has media group")
+
+            explanation = "; ".join(parts) if parts else "No signature or accountability information found"
+
+        return Metric(
+            id=metric_id,
+            criteria_name="Signature Transparency",
+            explanation=explanation,
+            flag=flag,
+            score=score,
+        )
+
+    except Exception as e:
+        logger.error(f"Signature analysis failed: {e}")
+        # Fallback on error
+        has_any = bool((author or "").strip() or (editor or "").strip() or (media_group or "").strip())
+        return Metric(
+            id=metric_id,
+            criteria_name="Signature Transparency",
+            explanation=f"Analysis error; basic check: {'some info present' if has_any else 'no info found'}",
+            flag=0 if has_any else -1,
+            score=0.5 if has_any else 0.3,
+        )

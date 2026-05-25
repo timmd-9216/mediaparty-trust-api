@@ -1,4 +1,4 @@
-from typing import Literal
+from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
@@ -16,6 +16,12 @@ class ArticleInput(BaseModel):
     media_type: str = Field(
         ..., description="The type of media (e.g., 'news', 'blog', 'social')"
     )
+    editor: Optional[str] = Field(
+        None, description="Editor/director responsible (from footer)"
+    )
+    media_group: Optional[str] = Field(
+        None, description="Media group/publisher name (from footer)"
+    )
 
     class Config:
         json_schema_extra = {
@@ -26,6 +32,8 @@ class ArticleInput(BaseModel):
                 "link": "https://example.com/article",
                 "date": "2025-10-04",
                 "media_type": "news",
+                "editor": "Jane Smith (Editor)",
+                "media_group": "Example Media Group Inc.",
             }
         }
 

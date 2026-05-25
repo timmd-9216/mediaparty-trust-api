@@ -67,70 +67,174 @@ class OpenRouterLM(dspy.LM):
 
 
 class ArticleExtractor(dspy.Signature):
-    """Extract article information from raw HTML content.
+    """Extract article information from pre-processed HTML content.
 
-    Given the HTML content of a news article page, extract the following:
-    - title: The article title/headline
-    - body: The main article content (clean text, no HTML)
-    - author: The article author name if found (null if not found)
-    - editor: The editor responsible or director name if found in footer/paratext (null if not found)
-    - media_group: The media group, company, or publisher name if found in footer/paratext (null if not found)
+    The input contains clearly marked sections:
+    - TITLE: (pre-extracted if available)
+    - AUTHOR: (pre-extracted if available)
+    - --- MAIN CONTENT ---: Article body
+    - --- FOOTER / PARATEXTO ---: Footer with editor/media info
 
-    Return only a valid JSON object with these fields.
+    Extract:
+    - title: Use pre-extracted TITLE or find in main content. Never empty.
+    - body: From MAIN CONTENT section. Never empty.
+    - author: Use pre-extracted AUTHOR or find bylines. Empty string "" if not found.
+    - editor: From FOOTER section ("Director: X"). Empty string "" if not found.
+    - media_group: From FOOTER (company names like "Grupo X S.A."). Empty string "" if not found.
+
+    Return empty strings "" for missing fields, never null.
     """
-    html_content: str = dspy.InputField(desc="Raw HTML content of the news article page")
+    html_content: str = dspy.InputField(desc="Pre-processed HTML with TITLE, AUTHOR, MAIN CONTENT, FOOTER sections")
     url: str = dspy.InputField(desc="URL of the article for context")
-    title: str = dspy.OutputField(desc="Article title/headline")
-    body: str = dspy.OutputField(desc="Main article content as clean text")
-    author: Optional[str] = dspy.OutputField(desc="Author name or null if not found")
-    editor: Optional[str] = dspy.OutputField(desc="Editor responsible name from footer or null")
-    media_group: Optional[str] = dspy.OutputField(desc="Media group/publisher name from footer or null")
+    title: str = dspy.OutputField(desc="Article title/headline - never empty")
+    body: str = dspy.OutputField(desc="Main article content - never empty")
+    author: str = dspy.OutputField(desc="Author name, empty string if not found")
+    editor: str = dspy.OutputField(desc="Editor name from footer, empty string if not found")
+    media_group: str = dspy.OutputField(desc="Media group name from footer, empty string if not found")
 
 
 def fetch_html(url: str) -> str:
     """Fetch HTML content from URL with proper headers."""
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8",
         "Accept-Language": "es-ES,es;q=0.9,en;q=0.8",
         "Accept-Encoding": "gzip, deflate, br",
         "Connection": "keep-alive",
         "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Cache-Control": "max-age=0",
     }
 
     try:
-        response = requests.get(url, headers=headers, timeout=30, allow_redirects=True)
+        # Create a session to handle cookies
+        session = requests.Session()
+        # First request to get cookies
+        session.get("https://www.perfil.com/", headers=headers, timeout=10, allow_redirects=True)
+
+        # Actual request to the target URL
+        response = session.get(url, headers=headers, timeout=30, allow_redirects=True)
         response.raise_for_status()
-        # Ensure proper encoding
+
+        # Handle encoding properly
         if response.encoding is None:
-            response.encoding = 'utf-8'
-        return response.text
+            response.encoding = response.apparent_encoding or 'utf-8'
+
+        content = response.text
+        logger.info(f"Fetched URL: {url}, encoding: {response.encoding}, length: {len(content)}")
+
+        # Quick validation - should contain HTML tags
+        if '<html' not in content.lower() and '<!' not in content[:100]:
+            logger.warning(f"Response may not be valid HTML. Preview: {content[:200]}")
+
+        return content
     except requests.RequestException as e:
         logger.error(f"Failed to fetch URL {url}: {e}")
         raise ValueError(f"Failed to fetch URL: {str(e)}")
 
 
 def clean_html_for_llm(html: str, max_chars: int = 50000) -> str:
-    """Clean and truncate HTML for LLM processing."""
+    """Clean and prepare HTML for LLM processing, preserving structure."""
+    # Check if content looks like binary/corrupted
+    if not html or len(html.strip()) == 0:
+        raise ValueError("Empty HTML content received")
+
+    # Check for binary content (high ratio of non-printable chars)
+    sample = html[:1000]
+    printable_chars = sum(1 for c in sample if c.isprintable() or c.isspace())
+    if len(sample) > 0 and printable_chars / len(sample) < 0.8:
+        # Try to re-decode as latin-1 fallback
+        try:
+            if isinstance(html, bytes):
+                html = html.decode('utf-8', errors='replace')
+        except:
+            pass
+
     soup = BeautifulSoup(html, 'html.parser')
 
-    # Remove script and style elements
-    for script in soup(["script", "style", "nav", "header"]):
-        script.decompose()
+    # Remove unwanted elements but keep structure
+    for element in soup.find_all(['script', 'style', 'nav', 'aside', 'iframe', 'svg', 'canvas']):
+        element.decompose()
 
-    # Get text
-    text = soup.get_text(separator='\n', strip=True)
+    # Try to find main content area - common patterns
+    content_selectors = [
+        'article', 'main', '[role="main"]',
+        '.article-body', '.article-content', '.content-body',
+        '.nota-content', '.news-body',  # Common in Argentine media
+        '#article-body', '#content',
+        'section.content', 'div.content'
+    ]
 
-    # Clean up whitespace
-    lines = (line.strip() for line in text.splitlines())
-    chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-    text = '\n'.join(chunk for chunk in chunks if chunk)
+    main_content = None
+    for selector in content_selectors:
+        main_content = soup.select_one(selector)
+        if main_content:
+            break
+
+    # Also try to find footer for editor/media info
+    footer_selectors = ['footer', '.footer', '#footer', '.site-footer', '.pie']
+    footer_content = None
+    for selector in footer_selectors:
+        footer_content = soup.select_one(selector)
+        if footer_content:
+            break
+
+    # Extract title from meta or h1
+    title = ""
+    title_meta = soup.find('meta', property='og:title') or soup.find('meta', attrs={'name': 'twitter:title'})
+    if title_meta:
+        title = title_meta.get('content', '')
+    if not title:
+        h1 = soup.find('h1')
+        if h1:
+            title = h1.get_text(strip=True)
+
+    # Extract author from meta tags
+    author = ""
+    author_meta = soup.find('meta', attrs={'name': 'author'}) or soup.find('meta', property='og:author')
+    if author_meta:
+        author = author_meta.get('content', '')
+
+    # Build structured content
+    parts = []
+
+    if title:
+        parts.append(f"TITLE: {title}")
+    if author:
+        parts.append(f"AUTHOR: {author}")
+
+    parts.append("\n--- MAIN CONTENT ---\n")
+
+    if main_content:
+        # Get text from main content, preserving some structure
+        text = main_content.get_text(separator='\n', strip=True)
+    else:
+        # Fallback to body or whole document
+        body = soup.find('body') or soup
+        text = body.get_text(separator='\n', strip=True)
+
+    # Clean up whitespace but preserve paragraphs
+    lines = [line.strip() for line in text.splitlines() if line.strip()]
+    text = '\n'.join(lines)
+
+    parts.append(text)
+
+    if footer_content:
+        parts.append("\n\n--- FOOTER / PARATEXTO ---\n")
+        footer_text = footer_content.get_text(separator='\n', strip=True)
+        footer_lines = [line.strip() for line in footer_text.splitlines() if line.strip()]
+        parts.append('\n'.join(footer_lines[:50]))  # Limit footer content
+
+    result = '\n'.join(parts)
 
     # Truncate if too long
-    if len(text) > max_chars:
-        text = text[:max_chars] + "\n...[content truncated]"
+    if len(result) > max_chars:
+        result = result[:max_chars] + "\n\n...[content truncated]"
 
-    return text
+    return result
 
 
 def scrape_article(url: str) -> dict:
@@ -167,12 +271,19 @@ def scrape_article(url: str) -> dict:
             module = dspy.ChainOfThought(ArticleExtractor)
             result = module(html_content=cleaned_content, url=url)
 
+        # Helper to clean optional fields (empty -> None)
+        def clean_optional(value: str) -> Optional[str]:
+            if not value:
+                return None
+            stripped = value.strip()
+            return stripped if stripped else None
+
         return {
             "title": result.title.strip() if result.title else "",
             "body": result.body.strip() if result.body else "",
-            "author": result.author.strip() if result.author else None,
-            "editor": result.editor.strip() if result.editor else None,
-            "media_group": result.media_group.strip() if result.media_group else None,
+            "author": clean_optional(result.author),
+            "editor": clean_optional(result.editor),
+            "media_group": clean_optional(result.media_group),
             "url": url,
         }
     except Exception as e:
