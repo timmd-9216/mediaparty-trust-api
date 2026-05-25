@@ -1,6 +1,6 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  output: 'export',
+  // output: 'export',  // Solo para build estático, no desarrollo
   distDir: 'dist',
 };
 

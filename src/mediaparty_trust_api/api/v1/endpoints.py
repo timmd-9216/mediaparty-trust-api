@@ -87,8 +87,11 @@ async def scrape_article_endpoint(url: str = Query(..., description="URL of the 
     Returns:
         ScrapeResponse with extracted article data
     """
+    import asyncio
+    logger.info(f"📥 Recibida petición de scrape para URL: {url}")
     try:
-        result = scrape_article(url)
+        # Ejecutar scraper en thread separado para no bloquear el event loop
+        result = await asyncio.to_thread(scrape_article, url)
         return ScrapeResponse(**result)
     except ValueError as e:
         raise HTTPException(

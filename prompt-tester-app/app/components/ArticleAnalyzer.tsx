@@ -50,26 +50,35 @@ export function ArticleAnalyzer({
   const [scrapeLoading, setScrapeLoading] = useState(false);
 
   const handleScrape = async () => {
-    if (!url.trim()) return;
-    setScrapeLoading(true);
-    const result = await onScrape(url);
-    if (result) {
-      setTitle(result.title);
-      setBody(result.body);
-      setAuthor(result.author || "");
-      // Auto-analizar después de scrape exitoso con datos completos
-      const dataWithDefaults = {
-        ...result,
-        editor: result.editor ?? null,
-        media_group: result.media_group ?? null,
-      };
-      if (onAnalyzeWithData) {
-        await onAnalyzeWithData(dataWithDefaults);
-      } else {
-        await onAnalyze(result.title, result.body, result.author || "", result.url, result.editor, result.media_group);
-      }
+    console.log("🎬 ArticleAnalyzer.handleScrape iniciado, URL:", url);
+    if (!url.trim()) {
+      console.log("⚠️ URL vacía, cancelando");
+      return;
     }
-    setScrapeLoading(false);
+    setScrapeLoading(true);
+    try {
+      console.log("📡 Llamando a onScrape...");
+      const result = await onScrape(url);
+      console.log("📦 onScrape resultado:", result);
+      if (result) {
+        setTitle(result.title);
+        setBody(result.body);
+        setAuthor(result.author || "");
+        // Auto-analizar después de scrape exitoso con datos completos
+        const dataWithDefaults = {
+          ...result,
+          editor: result.editor ?? null,
+          media_group: result.media_group ?? null,
+        };
+        if (onAnalyzeWithData) {
+          await onAnalyzeWithData(dataWithDefaults);
+        } else {
+          await onAnalyze(result.title, result.body, result.author || "", result.url, result.editor, result.media_group);
+        }
+      }
+    } finally {
+      setScrapeLoading(false);
+    }
   };
 
   const handleAnalyze = () => {
@@ -133,6 +142,7 @@ export function ArticleAnalyzer({
                 onClick={handleScrape}
                 disabled={!url.trim() || scrapeLoading || loading}
                 className="flex items-center gap-2 px-4 py-2 bg-primary-600 text-white rounded-lg hover:bg-primary-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                data-debug={`url=${!!url.trim()}, scrapeLoading=${scrapeLoading}, loading=${loading}`}
               >
                 {scrapeLoading ? (
                   <Loader2 className="w-4 h-4 animate-spin" />

@@ -34,7 +34,7 @@ class OpenRouterLM(dspy.LM):
         if messages is None:
             messages = [{"role": "user", "content": prompt}]
 
-        logger.info(f"Calling OpenRouter API with model: {self.model}")
+        print(f"🤖 Calling OpenRouter API with model: {self.model}")
 
         response = requests.post(
             url="https://openrouter.ai/api/v1/chat/completions",
@@ -50,19 +50,21 @@ class OpenRouterLM(dspy.LM):
                 "temperature": kwargs.get("temperature", 0.1),
                 "top_p": kwargs.get("top_p", 0.9),
                 "max_tokens": kwargs.get("max_tokens", 2000),
-            }
+            },
+            timeout=120  # Timeout de 2 minutos para modelos gratuitos lentos
         )
 
+        print(f"📡 OpenRouter response status: {response.status_code}")
         if response.status_code == 200:
             result = response.json()
             if 'choices' in result and len(result['choices']) > 0:
                 content = result['choices'][0]['message']['content']
-                logger.info(f"OpenRouter API call successful")
+                print("✅ OpenRouter API call successful")
                 return [content]
             else:
                 raise ValueError("No response from model")
         else:
-            logger.error(f"OpenRouter API error: {response.status_code} - {response.text}")
+            print(f"❌ OpenRouter API error: {response.status_code} - {response.text}")
             raise ValueError(f"API error: {response.status_code} - {response.text}")
 
 
@@ -116,7 +118,7 @@ def fetch_html(url: str) -> str:
         session.get("https://www.perfil.com/", headers=headers, timeout=10, allow_redirects=True)
 
         # Actual request to the target URL
-        response = session.get(url, headers=headers, timeout=30, allow_redirects=True)
+        response = session.get(url, headers=headers, timeout=15, allow_redirects=True)
         response.raise_for_status()
 
         # Handle encoding properly
@@ -247,7 +249,7 @@ def scrape_article(url: str) -> dict:
     Returns:
         dict with keys: title, body, author, editor, media_group, url
     """
-    logger.info(f"Scraping article from URL: {url}")
+    print(f"📥 Scraping article from URL: {url}")
 
     # Validate URL
     parsed = urlparse(url)
@@ -255,10 +257,14 @@ def scrape_article(url: str) -> dict:
         raise ValueError("Invalid URL provided")
 
     # Fetch HTML
+    print("📡 Fetching HTML...")
     html = fetch_html(url)
+    print(f"✅ HTML fetched: {len(html)} chars")
 
     # Clean HTML for LLM
+    print("🧹 Cleaning HTML...")
     cleaned_content = clean_html_for_llm(html)
+    print(f"✅ Cleaned content: {len(cleaned_content)} chars")
 
     # Use LLM to extract structured data
     api_key = os.getenv("OPENROUTER_API_KEY")
@@ -266,10 +272,12 @@ def scrape_article(url: str) -> dict:
         raise ConfigurationError("OPENROUTER_API_KEY not configured for scraping")
 
     try:
+        print("🤖 Calling OpenRouter LLM...")
         lm = OpenRouterLM()
         with dspy.context(lm=lm):
             module = dspy.ChainOfThought(ArticleExtractor)
             result = module(html_content=cleaned_content, url=url)
+        print("✅ LLM response received")
 
         # Helper to clean optional fields (empty -> None)
         def clean_optional(value: str) -> Optional[str]:
@@ -287,5 +295,5 @@ def scrape_article(url: str) -> dict:
             "url": url,
         }
     except Exception as e:
-        logger.error(f"LLM extraction failed: {e}")
+        print(f"❌ LLM extraction failed: {e}")
         raise ValueError(f"Failed to extract article content: {str(e)}")

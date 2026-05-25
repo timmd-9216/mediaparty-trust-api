@@ -31,14 +31,27 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState<"url" | "text">("url");
 
   const handleScrape = async (url: string) => {
+    console.log("🔍 page.tsx handleScrape iniciando para URL:", url);
     setLoading(true);
     setError(null);
     setMetrics(null);
 
     try {
-      const response = await fetch(
-        `${API_BASE_URL}/api/v1/scrape?url=${encodeURIComponent(url)}`
-      );
+      const apiUrl = `${API_BASE_URL}/api/v1/scrape?url=${encodeURIComponent(url)}`;
+      console.log("📡 Fetching:", apiUrl);
+      
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 180000); // 3 minutos timeout
+      
+      const response = await fetch(apiUrl, {
+        signal: controller.signal,
+        headers: {
+          'Accept': 'application/json',
+        },
+      });
+      clearTimeout(timeoutId);
+      
+      console.log("✅ Response status:", response.status);
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
@@ -49,6 +62,7 @@ export default function Home() {
       setScrapedData(data);
       return data;
     } catch (err) {
+      console.error("💥 Error en handleScrape:", err);
       setError(err instanceof Error ? err.message : "Error al extraer el artículo");
       return null;
     } finally {
