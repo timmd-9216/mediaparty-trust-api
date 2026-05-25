@@ -21,3 +21,12 @@ result.json
 # GCP credentials
 service-account-key.json
 *-service-account.json
+
+# Node.js / Next.js
+node_modules/
+.next/
+
+# prompt-tester-app specific
+prompt-tester-app/node_modules/
+prompt-tester-app/.next/
+prompt-tester-app/.env.local
