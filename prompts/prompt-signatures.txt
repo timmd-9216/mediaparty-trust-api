@@ -1,7 +1,33 @@
-Identificar en la noticia lo siguiente:
-1. si tiene firma, es decir un nombre propio (nombre y apellido) sea antes o después del cuerpo de la nota, separado del cuerpo de la nota. 
-1.2 si la firma es reconocida, es decir si esa firma aparece en 25 notas o más en medios
-2. si la nota está inicialada, es decir, si aparecen las iniciales de quien la redacta o edita al final del texto
-3. si en alguna parte del paratexto general del sitio web (generalmente el footer) aparece el nombre del editor responsable o director del medio
-4. si alguna parte del paratexto general del sitio web aparece el nombre del grupo editor, empresa o razón social
-5. si no se cumple ninguna de las anteriores
+Evaluate the transparency and accountability indicators from scraped article metadata.
+
+You receive three pieces of information extracted from the news article:
+- author: The author name (may be empty, a full name like "Juan Pérez", or initials like "J.P.")
+- editor: The editor/director name from the footer (may be empty)
+- media_group: The media group/publisher from the footer (may be empty)
+
+Your task is to classify and evaluate:
+
+1. **signature_type**: Classify the author signature as:
+   - FULL_NAME: A proper name with first AND last name (e.g., "María González", "Juan Pérez")
+   - INITIALS: Only capital letters, typically 2-4 characters (e.g., "M.G.", "JP", "ABC")
+   - NONE: Empty, null, or unidentifiable author
+
+2. **has_editor**: True if a valid editor/director name is present (not empty/null), False otherwise.
+
+3. **has_media_group**: True if a valid media group/publisher name is present (not empty/null), False otherwise.
+
+4. **explanation**: Write a brief summary like:
+   - "Full name author + editor + media group" (best case)
+   - "Initials only, no editor or media group identified" (poor transparency)
+   - "Full name author, has editor but no media group"
+
+Transparency scoring (for reference):
+- Excellent (flag=1, score=0.9): FULL_NAME + has_editor + has_media_group
+- Good (flag=0, score=0.6): FULL_NAME only, or INITIALS + has_editor + has_media_group
+- Poor (flag=-1, score=0.3): NONE or INITIALS without accountability info
+
+Guidelines:
+- Be strict: FULL_NAME requires at least two words (first + last name)
+- INITIALS are uppercase letters only, no lowercase
+- has_editor/has_media_group are boolean - True only if non-empty valid strings
+- Return empty string "" for explanation if all fields are empty

@@ -1,34 +1,41 @@
 {
-  "$schema": "http://json-schema.org/draft-07/schema#",
-  "type": "object",
-  "properties": {
-    "input": {
-      "type": "object",
-      "properties": {
-        "paratexto": {
-          "type": "string"
-        }
-      },
-      "required": ["paratexto"]
+  "name": "SignatureEvaluator",
+  "inputs": {
+    "author": {
+      "type": "string",
+      "description": "Author name extracted from the article (may be empty, full name, or initials)"
     },
-    "output": {
-      "type": "object",
-      "properties": {
-        "signature": {
-          "type": "string",
-          "enum": ["name", "initials", "nobody"]
-        },
-        "responsible": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "enum": ["author", "responsible-editor", "group"]
-          }
-        }
-      },
-      "required": ["signature", "responsible"]
+    "editor": {
+      "type": "string",
+      "description": "Editor/director name extracted from footer (may be empty)"
+    },
+    "media_group": {
+      "type": "string",
+      "description": "Media group/publisher name extracted from footer (may be empty)"
     }
   },
-  "required": ["input", "output"]
+  "outputs": {
+    "signature_type": {
+      "type": "string",
+      "description": "One of: FULL_NAME | INITIALS | NONE. FULL_NAME = proper name with first and last name. INITIALS = capital letters only (2-4 chars). NONE = empty or no identifiable author."
+    },
+    "has_editor": {
+      "type": "boolean",
+      "description": "True if editor/director name is present and valid"
+    },
+    "has_media_group": {
+      "type": "boolean",
+      "description": "True if media group/publisher name is present and valid"
+    },
+    "explanation": {
+      "type": "string",
+      "description": "Brief explanation of what was found (e.g., 'Full name author + editor + media group')"
+    }
+  },
+  "thresholds": {
+    "excellent": {"flag": 1, "score": 0.9},
+    "good": {"flag": 0, "score": 0.6},
+    "poor": {"flag": -1, "score": 0.3}
+  }
 }
 
